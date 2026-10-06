@@ -56,10 +56,10 @@ export function OverviewPanel({ session, onExplore }: { session: Session; onExpl
         )}
         <p className="muted small mt14">
           {health && !health.ai.anyConfigured
-            ? 'AI analysis is not set up on this server, so no definition or related-topic suggestions are shown. Search results below are unaffected.'
+            ? 'AI analysis is not set up on this server, so no definition or related-topic suggestions are shown. Search results are unaffected.'
             : session.analysis.ai.status === 'disabled'
               ? 'AI analysis was turned off for this search, so no definition or related-topic suggestions are shown.'
-              : 'Definitions and related-topic suggestions are unavailable without AI analysis right now. Search results below are unaffected.'}
+              : 'Definitions and related-topic suggestions are unavailable without AI analysis right now. Search results are unaffected.'}
         </p>
       </Section>
     );
@@ -100,7 +100,7 @@ export function OverviewPanel({ session, onExplore }: { session: Session; onExpl
       )}
       <h4 className="label mt14">Keywords <AITag /></h4>
       <KeywordChips items={[...a.keywords, ...a.synonyms.filter((s) => !a.keywords.includes(s))].slice(0, 14)} onExplore={onExplore} />
-      <p className="overview__caption">AI-generated explanation from general knowledge, not drawn from a cited source. Check it against the studies below.</p>
+      <p className="overview__caption">AI-generated explanation from general knowledge, not drawn from a cited source. Check it against the original studies.</p>
     </Section>
   );
 }

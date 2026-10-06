@@ -106,8 +106,9 @@ export default function SearchPage() {
   return (
     <div className="page page--search">
       <div className="intro">
-        <h1>Discover the research behind your topic.</h1>
-        <p className="intro__sub">Paste a lesson, research topic, question, or study and explore recent scholarly work, related concepts, and verified sources.</p>
+        <p className="label">Your research starts here</p>
+        <h1>What would you like to explore?</h1>
+        <p className="intro__sub">Start with a question, a passage, or a document. Find recent studies and the sources behind them.</p>
       </div>
 
       <form className={`composer ${drag ? 'composer--drag' : ''}`} onSubmit={submit} onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDrag(false); }} onDrop={onDrop} aria-describedby={`${id}-notes`}>

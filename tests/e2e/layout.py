@@ -27,7 +27,7 @@ MEASURE = """() => {
 }"""
 
 with sync_playwright() as p:
-    b = p.chromium.launch()
+    b = p.chromium.connect_over_cdp(os.environ['BROWSER_CDP_URL']) if os.environ.get('BROWSER_CDP_URL') else p.chromium.launch()
     ctx = b.new_context(bypass_csp=True)
     ctx.add_init_script(SEEN)
     page = ctx.new_page()
@@ -45,7 +45,7 @@ with sync_playwright() as p:
         results.append(ok)
         print('PASS' if ok else 'FAIL', f'{w}px: every dropdown option fits', clipped[:2] if clipped else '')
     ctx.close()
-    b.close()
+    if not os.environ.get('BROWSER_CDP_URL'): b.close()
 
 bad = results.count(False)
 print(f"\n{len(results) - bad}/{len(results)} passed")

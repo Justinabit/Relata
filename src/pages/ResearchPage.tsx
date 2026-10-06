@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bookmark, BookmarkCheck, Download, FilterX, Pencil, RefreshCw } from 'lucide-react';
+import { Bookmark, BookmarkCheck, ChevronDown, Download, FilterX, Pencil, RefreshCw } from 'lucide-react';
 import type { Study } from '../../shared/types';
 import { nf, excerpt } from '../lib/format';
 import { Link, useDocumentTitle, useRouter } from '../lib/router';
@@ -81,19 +81,16 @@ export default function ResearchPage() {
       </p>
 
       {s.analysis ? <FilterBar filters={s.filters} onChange={setFilters} defaultYears={settings.yearsBack} /> : s.phase === 'analyzing' ? <FilterSkeleton /> : null}
-      <TrustPanel />
       {showAIProblem && s.analysis && <AIStatusCallout ai={s.analysis.ai} />}
       {s.insightsNote && !showAIProblem && <AIStatusCallout ai={s.insightsNote} />}
       {r?.notices.map((n) => <Callout key={n.code} tone={n.level === 'warning' ? 'warn' : 'info'}>{n.message}</Callout>)}
 
       <div className="dash">
         <div className="dash__main">
-          {s.phase === 'analyzing' && !s.analysis ? <div className="u-o1"><TopicSkeleton /></div> : <OverviewPanel session={s} onExplore={explore} />}
-
           <Section
-            className={`u-o3 studies ${s.refreshing ? 'studies--busy' : ''}`}
-            title="Related Research"
-            hint={r ? `These are relevant studies found through the available sources and search strategy. Showing ${nf.format(s.studies.length)} of ${nf.format(r.counts.eligible)} eligible records retrieved so far.` : 'Searching verified scholarly sources…'}
+            className={`studies ${s.refreshing ? 'studies--busy' : ''}`}
+            title="Studies"
+            hint={r ? `${nf.format(s.studies.length)} of ${nf.format(r.counts.eligible)} eligible studies from this search.` : 'Searching verified scholarly sources…'}
           >
             {s.phase === 'error' && (
               <Callout
@@ -148,6 +145,11 @@ export default function ResearchPage() {
         </div>
 
         <aside className="dash__rail" aria-label="Topics, themes and search strategy">
+          <details className="topic-overview">
+            <summary>About this topic <ChevronDown size={16} aria-hidden="true" /></summary>
+            {s.phase === 'analyzing' && !s.analysis ? <TopicSkeleton /> : <OverviewPanel session={s} onExplore={explore} />}
+          </details>
+          <TrustPanel />
           {s.phase === 'analyzing' && !s.analysis ? <div className="u-o2"><RailSkeleton rows={3} /></div> : <RelatedTopicsPanel session={s} onExplore={explore} />}
           {r && <ThemesPanel agg={r.aggregates} onExplore={explore} />}
           {loadingStudies && !r && <div className="u-o4"><RailSkeleton rows={2} /></div>}

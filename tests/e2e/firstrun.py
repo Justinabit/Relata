@@ -24,7 +24,7 @@ def stored(page, key):
 
 
 with sync_playwright() as p:
-    b = p.chromium.launch()
+    b = p.chromium.connect_over_cdp(os.environ['BROWSER_CDP_URL']) if os.environ.get('BROWSER_CDP_URL') else p.chromium.launch()
 
     def fresh(**kw):
         ctx = b.new_context(bypass_csp=True, viewport=kw.pop('viewport', {'width': 1360, 'height': 900}), **kw)
@@ -175,7 +175,7 @@ with sync_playwright() as p:
     check('mobile: notice sits above the bottom navigation', n['bottom'] <= nav['top'] + 1, f"notice bottom {n['bottom']:.0f}, nav top {nav['top']:.0f}")
     ctx.close()
 
-    b.close()
+    if not os.environ.get('BROWSER_CDP_URL'): b.close()
 
 bad = [n for n, ok in results if not ok]
 print(f"\n{len(results) - len(bad)}/{len(results)} passed")
