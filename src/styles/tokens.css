@@ -1,0 +1,89 @@
+/* Design tokens. Light is the default; dark is a re-tuned palette, not an inversion. */
+:root {
+  --font-ui: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Source Serif 4 Variable', 'Iowan Old Style', Georgia, serif;
+
+  --bg: #e3e1dc;
+  --surface: #e8e6e1;
+  --surface-hi: #eeece8;
+  --inset: #dcdad4;
+  --text: #1d2025;
+  --text-2: #444a52;
+  --text-3: #50565e;
+  --border: rgba(70, 60, 40, 0.14);
+  --border-soft: rgba(70, 60, 40, 0.09);
+  --rule: rgba(70, 60, 40, 0.16);
+
+  --accent: #17535b;
+  --accent-hover: #124248;
+  --on-accent: #ffffff;
+  --accent-soft: rgba(23, 83, 91, 0.1);
+  --accent-text: #17535b;
+  --focus: #0b6fb3;
+
+  --ok: #1d6339;
+  --ok-bg: rgba(29, 99, 57, 0.11);
+  --warn: #7a4e00;
+  --warn-bg: rgba(160, 105, 0, 0.14);
+  --danger: #9a2a2a;
+  --danger-bg: rgba(154, 42, 42, 0.11);
+  --info-bg: rgba(23, 83, 91, 0.08);
+
+  --sh-light: rgba(255, 255, 255, 0.72);
+  --sh-dark: rgba(128, 120, 104, 0.34);
+  --shadow-raised: 5px 5px 12px var(--sh-dark), -5px -5px 12px var(--sh-light);
+  --shadow-sm: 3px 3px 7px var(--sh-dark), -3px -3px 7px var(--sh-light);
+  --shadow-xs: 2px 2px 4px var(--sh-dark), -2px -2px 4px var(--sh-light);
+  --shadow-inset: inset 3px 3px 6px var(--sh-dark), inset -3px -3px 6px var(--sh-light);
+  --shadow-inset-sm: inset 2px 2px 4px var(--sh-dark), inset -2px -2px 4px var(--sh-light);
+
+  --r-btn: 5px; /* every button-style control (buttons, segmented options, nav links, example chips) */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 12px;
+
+  --nav-w: 236px;
+  --topbar-h: 52px;
+  --bottomnav-h: 60px;
+  --gap: 14px;
+  --pad: 14px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur: 160ms;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg: #17181b;
+  --surface: #1e2024;
+  --surface-hi: #24262b;
+  --inset: #16171a;
+  --text: #e9e7e2;
+  --text-2: #bcbbb6;
+  --text-3: #9c9c97;
+  --border: rgba(255, 255, 255, 0.09);
+  --border-soft: rgba(255, 255, 255, 0.06);
+  --rule: rgba(255, 255, 255, 0.12);
+
+  --accent: #78bcc4;
+  --accent-hover: #93cdd4;
+  --on-accent: #0c2226;
+  --accent-soft: rgba(120, 188, 196, 0.13);
+  --accent-text: #8ecbd2;
+  --focus: #7cc0ff;
+
+  --ok: #7fcf9c;
+  --ok-bg: rgba(127, 207, 156, 0.12);
+  --warn: #e6bd6a;
+  --warn-bg: rgba(230, 189, 106, 0.12);
+  --danger: #f09a9a;
+  --danger-bg: rgba(240, 154, 154, 0.12);
+  --info-bg: rgba(120, 188, 196, 0.09);
+
+  --sh-light: rgba(255, 255, 255, 0.035);
+  --sh-dark: rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
+
+@media (min-width: 720px) {
+  :root { --gap: 18px; --pad: 18px; }
+}
