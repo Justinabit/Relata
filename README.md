@@ -31,9 +31,10 @@ python3 tests/e2e/stuck-insights.py                   # AI summaries recover aft
 python3 tests/e2e/layout.py                           # no dropdown option is clipped at 15 screen widths (run on its own: it uses one search)
 python3 tests/e2e/firstrun.py                         # terms popup, introduction, cookie notice (new visitor paths, keyboard, mobile)
 python3 tests/e2e/site.py                             # landing page, routing, 5px radius, no dashes, mobile (SHOTS=dir saves screenshots)
+python3 tests/e2e/editorial.py                        # light/dark at 390/768/1440px, contrast, overflow, states and dialogs
 ```
 
-`browser.py` also covers maximum-sized AI analysis, complete pagination, and malformed entries mixed with valid saved research. Set `BROWSER_CDP_URL` to attach it to an existing Chromium session; `BASE_URL` overrides its fixture address.
+`browser.py` also covers maximum-sized AI analysis, complete pagination, and malformed entries mixed with valid saved research. Set `BROWSER_CDP_URL` to attach `browser.py`, `site.py`, `layout.py`, `firstrun.py`, or `editorial.py` to an existing Chromium session; `BASE_URL` overrides the fixture address. `SHOTS=dir` saves screenshots from the editorial matrix. When running all suites together, start the fixture harness with `RATE_LIMIT_AI=200 RATE_LIMIT_GENERAL=2000 RATE_LIMIT_SEARCH=400` to accommodate repeated synthetic searches.
 
 ## Layout
 
@@ -56,6 +57,8 @@ Old addresses (`/research`, `/saved`, `/settings`) and trailing-slash addresses 
 ## Going live: public address, sitemap and share previews
 
 Set `PUBLIC_URL` (for example `https://relata.example`) in the environment. With it, the server adds a canonical link and absolute share-image tags to every page and serves `/sitemap.xml`; `/robots.txt` then names the sitemap. Without it the site still works, but there is no sitemap and no canonical or share-image tags, because those need an absolute address. `robots.txt` always hides `/app` and `/api/`. The share image is `public/og-image.png` (1200 x 630); replace it if the headline or logo changes. Share previews show the same title and description on every page.
+
+Visual direction: editorial typography with accessible neumorphism. Light mode uses pearl-gray surfaces, ink text, and muted blue accents; dark mode uses neutral charcoal surfaces and soft white text. Source Serif 4 headings and Inter controls share palette, spacing, and paired shadow tokens in `src/styles/tokens.css`. Search panels are softly raised, fields and selected controls are inset, and buttons have tactile pressed states. Borders and focus outlines remain visible independently of shadows. Research lists retain fine rules and come first in document order, with the full topic overview in a collapsed supporting section. Floating menus, dialogs, and notices use stronger separation.
 
 Design rules: every button-style control uses `--r-btn` (5px) from `src/styles/tokens.css`. Change that one value to restyle all buttons. No gradients, pill shapes, emoji icons, em or en dashes in visible text, or animations tied to scrolling or the cursor.
 

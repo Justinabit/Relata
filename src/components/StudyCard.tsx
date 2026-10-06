@@ -74,7 +74,7 @@ export function StudyCard({ study: s, index = 0, insight, insightsExpected, onCi
       {!compact && insightsExpected && (
         <div className="study__ai">
           <div className="study__block">
-            <h4 className="study__label">Why this is relevant</h4>
+            <h4 className="study__label">Why this is relevant <AITag /></h4>
             {insight === undefined || insight === 'loading' ? (
               <Skeletons lines={2} />
             ) : ins?.relevance ? (
@@ -116,7 +116,7 @@ export function StudyCard({ study: s, index = 0, insight, insightsExpected, onCi
 
       <div className="study__actions">
         {s.url ? (
-          <a className="btn btn--primary" href={s.url} target="_blank" rel="noopener noreferrer">
+          <a className="btn btn--source" href={s.url} target="_blank" rel="noopener noreferrer">
             <ExternalLink size={16} aria-hidden="true" /> View study<span className="sr-only"> (opens in a new tab)</span>
           </a>
         ) : (

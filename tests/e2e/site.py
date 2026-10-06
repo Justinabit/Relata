@@ -28,7 +28,7 @@ def in_view(page, selector):
 
 
 with sync_playwright() as p:
-    b = p.chromium.launch()
+    b = p.chromium.connect_over_cdp(os.environ['BROWSER_CDP_URL']) if os.environ.get('BROWSER_CDP_URL') else p.chromium.launch()
     ctx = b.new_context(bypass_csp=True, viewport={'width': 1360, 'height': 900})
     ctx.add_init_script(SEEN)
     page = ctx.new_page()
@@ -41,7 +41,7 @@ with sync_playwright() as p:
     # ---- landing page --------------------------------------------------------------------
     page.goto(BASE + '/')
     page.wait_for_selector('h1')
-    check('landing: headline is the concrete one', page.inner_text('h1') == 'Find recent, verifiable studies on your topic.')
+    check('landing: headline is the concrete one', page.inner_text('h1') == 'Find the research behind your question.')
     check('landing: public layout, no app sidebar', page.locator('.sidebar').count() == 0 and page.locator('.pubhead').count() == 1)
     check('landing: no sign-in UI while accounts are disabled', page.locator('.account').count() == 0)
     check('landing: hero buttons use the 5px radius',
@@ -165,7 +165,7 @@ with sync_playwright() as p:
     m.close()
 
     check('no uncaught page or console errors', not errors, str(errors[:3]))
-    b.close()
+    if not os.environ.get('BROWSER_CDP_URL'): b.close()
 
 bad = [n for n, ok in results if not ok]
 print(f"\n{len(results) - len(bad)}/{len(results)} passed")

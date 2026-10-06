@@ -67,7 +67,7 @@ export default function SavedPage() {
     <div className="page">
       <header className="pagehead">
         <h1>Saved research</h1>
-        <p className="muted">Your personal library. Items are stored in this browser only (local storage) and hold verified metadata, not AI-generated text. Accounts and cloud sync are not available yet.</p>
+        <p className="muted">Your reading list, saved in this browser. Records contain source metadata only. Accounts and cloud sync are not available yet.</p>
       </header>
       {lib.persistFailed && <Callout tone="warn" title="Your browser blocked saving">Saved items will be lost when you close this tab. Check that site data or private browsing is not restricted.</Callout>}
 

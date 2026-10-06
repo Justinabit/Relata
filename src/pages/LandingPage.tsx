@@ -60,9 +60,10 @@ export default function LandingPage() {
       {/* ---------- Hero ---------- */}
       <section className="lp-hero lp-wrap" aria-labelledby={`${id}-h1`}>
         <div className="lp-hero__text">
-          <h1 id={`${id}-h1`}>Find recent, verifiable studies on your topic.</h1>
+          <p className="label lp-eyebrow">Academic research discovery</p>
+          <h1 id={`${id}-h1`}>Find the research behind your question.</h1>
           <p className="lp-lead">
-            Paste a research question, lesson topic or abstract, or upload a PDF, DOCX, TXT or Markdown file. Relata searches OpenAlex and Crossref and lists studies with their authors, year, journal and a DOI link, plus related concepts and the search steps behind them.
+            Explore recent studies from OpenAlex and Crossref. Build your reading list, follow related ideas, and cite the original sources.
           </p>
           <p className="lp-note">No account needed. Uploaded files are read in server memory and are not saved.</p>
         </div>
@@ -76,7 +77,7 @@ export default function LandingPage() {
             ref={areaRef} id={`${id}-t`} className="input textarea" rows={5} maxLength={maxChars} value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit(); }}
-            placeholder="Paste a topic, lesson, research question, abstract, or study here..."
+            placeholder="A question, a topic, or an abstract..."
             spellCheck
           />
           <div className="lp-composer__actions">
@@ -95,19 +96,19 @@ export default function LandingPage() {
           <h2 id={`${id}-how`}>How a search works</h2>
           <ol className="lp-steps">
             <li>
-              <span className="label">Step 1</span>
+              <span className="lp-step-number" aria-label="Step 1">01</span>
               <h3>Enter a topic or a document</h3>
-              <p>Relata identifies the main topic and keywords. With AI on, it also writes a short definition and suggests related topics. With AI off, it extracts keywords from your text instead.</p>
+              <p>Start with a question or upload a document. Relata extracts search terms, with optional AI to explain the topic and suggest related ideas.</p>
             </li>
             <li>
-              <span className="label">Step 2</span>
+              <span className="lp-step-number" aria-label="Step 2">02</span>
               <h3>Scholarly sources are searched</h3>
-              <p>OpenAlex is the main discovery source. Crossref checks DOIs and publisher records. Every study listed comes from one of these records, never from an AI model. Duplicates are merged.</p>
+              <p>Find studies through OpenAlex, with Crossref checking DOIs and publisher records. Every paper comes from a scholarly index. Duplicates are merged.</p>
             </li>
             <li>
-              <span className="label">Step 3</span>
+              <span className="lp-step-number" aria-label="Step 3">03</span>
               <h3>Filter, save and cite</h3>
-              <p>Narrow results by publication window (1, 3, 5 or 10 years), open access or type. Save studies in your browser, and copy citations in APA 7, MLA 9 or Chicago 17. Export as .txt, .csv or .json.</p>
+              <p>Filter by date, access or publication type. Save studies in this browser, cite in APA 7, MLA 9 or Chicago 17, and export your reading list.</p>
             </li>
           </ol>
         </div>
