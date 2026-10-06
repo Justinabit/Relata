@@ -1,5 +1,9 @@
 # Changelog
 
+## Repository housekeeping
+- New `README.md` for the repository, with screenshots in `docs/screenshots/`. The detailed developer notes that used to be the README are now in `docs/DEVELOPMENT.md`.
+- Stopped tracking the compiled Python file `tests/e2e/__pycache__/seen.cpython-313.pyc` and ignored `__pycache__/` and `*.pyc`.
+
 ## Filters, real 404s and launch basics
 - Filter dropdowns no longer clip: "(your default)" is now "(default)", the type "Other (books, chapters, reports, theses)" is now "Other (books, reports)", the filter panel is one column on phones, two on tablets and three on desktop. A new browser test measures every option at 15 screen widths.
 - Unknown addresses now return HTTP 404 (with `noindex`) instead of 200; old and trailing-slash addresses redirect with 301 and keep the query string. Routes moved to `shared/routes.ts` so the server and browser agree.
