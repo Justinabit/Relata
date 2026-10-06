@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { AIInfo, AnalyzeResponse, SearchFilters, SearchResponse, Study, StudyInsight } from '../../shared/types';
 import { reconcileFilters } from '../../shared/capabilities';
+import { searchConcepts } from '../../shared/search';
 import { api, ApiError, isAbort } from '../lib/api';
 import { useSettings } from './settings';
 
@@ -52,11 +53,6 @@ function initial(filters: SearchFilters): Session {
 export function topicTextFor(s: Pick<Session, 'input' | 'analysis'>): string {
   if (s.input.length <= 300) return s.input;
   return s.analysis?.analysis?.mainTopic ?? s.analysis?.plan.primaryQuery ?? s.input.slice(0, 300);
-}
-
-function conceptsFor(a: AnalyzeResponse): string[] {
-  if (!a.analysis) return a.plan.extractedKeywords;
-  return [...a.analysis.keywords, ...a.analysis.concepts.map((c) => c.term), ...a.analysis.relatedTopics.map((t) => t.name)];
 }
 
 /**
@@ -137,7 +133,7 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
 
   const doSearch = useCallback(async (analysis: AnalyzeResponse, filters: SearchFilters, page: number, runId: number, signal: AbortSignal) => {
     const res = await api.search(
-      { query: analysis.plan.primaryQuery, expandedQueries: analysis.plan.expandedQueries, concepts: conceptsFor(analysis), filters, page, perPage: settingsRef.current.perPage },
+      { query: analysis.plan.primaryQuery, expandedQueries: analysis.plan.expandedQueries, concepts: searchConcepts(analysis), filters, page, perPage: settingsRef.current.perPage },
       signal,
     );
     if (run.current !== runId) return null;

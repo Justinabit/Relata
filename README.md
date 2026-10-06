@@ -33,6 +33,8 @@ python3 tests/e2e/firstrun.py                         # terms popup, introductio
 python3 tests/e2e/site.py                             # landing page, routing, 5px radius, no dashes, mobile (SHOTS=dir saves screenshots)
 ```
 
+`browser.py` also covers maximum-sized AI analysis, complete pagination, and malformed entries mixed with valid saved research. Set `BROWSER_CDP_URL` to attach it to an existing Chromium session; `BASE_URL` overrides its fixture address.
+
 ## Layout
 
 - `shared/` domain types, dynamic window, per-source filter capabilities, citation formatting
@@ -78,5 +80,7 @@ Nothing about login is visible today. The seams are in place:
 
 - Uploaded files are validated (extension, MIME, magic bytes, size), read in memory and discarded. Nothing is written to disk. No OCR for scanned PDFs.
 - Server caches (memory only): search results 15 min, AI analysis of short typed queries 1 h, Crossref DOI lookups 24 h.
+- Search checks up to 100 candidates per source and query, verifies and ranks them, and exposes at most 100 eligible studies. Pages share the same cached pool regardless of page size, so the initial search may take longer. A notice explains when more candidates may exist. Expired caches and retries after partial provider failures can produce a fresh pool.
+- Saved-library entries are validated before display. Malformed entries are skipped individually, and missing collection references are removed from the loaded view; loading does not overwrite local storage.
 - No accounts, analytics or cookies. localStorage keys: `relata:settings:v1`, `relata:library:v1`, `relata:citestyle`, `relata:terms:v1`, `relata:onboarded:v1`, `relata:cookies:v1`.
 - Policy pages are draft text for a personal-use deployment and need review before public launch.

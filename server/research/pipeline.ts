@@ -23,7 +23,28 @@ export interface SearchParams {
   perPage: number;
 }
 
-const resultCache = new TtlCache<SearchResponse>(150, config.retention.searchCacheSeconds * 1000);
+type SearchPool = Omit<SearchResponse, 'page' | 'perPage' | 'hasMore' | 'cache' | 'counts'> & {
+  counts: Omit<SearchResponse['counts'], 'displayed'>;
+};
+const resultCache = new TtlCache<SearchPool>(150, config.retention.searchCacheSeconds * 1000);
+
+function pageResponse(pool: SearchPool, params: SearchParams, cachedAt: number | null): SearchResponse {
+  const start = (params.page - 1) * params.perPage;
+  const studies = pool.studies.slice(start, start + params.perPage);
+  // Cached metadata must remain available to the summary endpoint, even after store eviction.
+  rememberStudies(studies);
+  return {
+    ...pool,
+    studies,
+    page: params.page,
+    perPage: params.perPage,
+    hasMore: start + params.perPage < pool.studies.length,
+    counts: { ...pool.counts, displayed: studies.length },
+    cache: cachedAt === null
+      ? { metadata: 'live', cachedAt: null }
+      : { metadata: 'cached', cachedAt: new Date(cachedAt).toISOString() },
+  };
+}
 const RRF_K = 20;
 
 function describe(err: unknown, service: string): string {
@@ -66,16 +87,10 @@ export async function runSearch(params: SearchParams, signal?: AbortSignal): Pro
     .slice(0, 3);
   if (!queries.length) throw new AppError(400, 'EMPTY_QUERY', 'Enter a topic or question to search.');
 
-  const cacheKey = createHash('sha256').update(JSON.stringify({ queries, filters, page: params.page, perPage: params.perPage, c: params.concepts })).digest('hex');
+  const cacheKey = createHash('sha256').update(JSON.stringify({ queries, filters, window, c: params.concepts })).digest('hex');
   const hit = resultCache.get(cacheKey);
-  if (hit) {
-    // Keep the verified-study store alive for as long as the cached page can be shown, so the AI
-    // summary endpoint can still find these records by id.
-    rememberStudies(hit.value.studies);
-    return { ...hit.value, cache: { metadata: 'cached', cachedAt: new Date(hit.storedAt).toISOString() } };
-  }
+  if (hit) return pageResponse(hit.value, params, hit.storedAt);
 
-  const depth = params.page * params.perPage;
   const notices: Notice[] = [];
   const reports: SourceReport[] = [];
   const rejected: Record<string, number> = {};
@@ -83,10 +98,8 @@ export async function runSearch(params: SearchParams, signal?: AbortSignal): Pro
   if (window.outsideDefault) {
     notices.push({ level: 'info', code: 'OUTSIDE_WINDOW', message: 'Outside the default 10-year research window. Older studies are included because you widened the window.' });
   }
-  if (depth - params.perPage >= config.limits.maxDepthPerQuery) {
-    return emptyResponse(params, queries, filters, window, [{ level: 'info', code: 'DEPTH_LIMIT', message: 'No further results are loaded for this search. Refine your keywords instead.' }]);
-  }
-  const limit = Math.min(depth, config.limits.maxDepthPerQuery);
+  // Discover the same bounded pool for every page; filtering and rank fusion precede slicing.
+  const limit = config.limits.maxDepthPerQuery;
 
   // ---------- 1. discovery ----------
   const wantOA = filters.sources.includes('openalex');
@@ -272,64 +285,36 @@ export async function runSearch(params: SearchParams, signal?: AbortSignal): Pro
     }
   });
 
-  const pool = eligible.map((r) => r.study);
-  const start = (params.page - 1) * params.perPage;
-  const pageStudies = pool.slice(start, start + params.perPage);
-  rememberStudies(pool);
+  const pool = eligible.slice(0, limit).map((r) => r.study);
+  const limited = eligible.length > pool.length || lists.some((l) => 'total' in l && l.total > limit);
+  if (limited) notices.push({
+    level: 'info', code: 'DEPTH_LIMIT',
+    message: `This search checks up to ${limit} records per source and query and displays up to ${limit} eligible studies. More candidates may exist. Refine your keywords to explore further.`,
+  });
 
-  const maxTotal = Math.max(0, ...reports.filter((r) => r.role === 'discovery' && r.status === 'ok').map((r) => r.totalMatches ?? 0));
-  const hasMore = pool.length > start + params.perPage || (limit < config.limits.maxDepthPerQuery && maxTotal > limit && pageStudies.length > 0);
-
-  const response: SearchResponse = {
+  const response: SearchPool = {
     searchId: randomUUID(),
     query: queries[0],
     expandedQueries: queries.slice(1),
     filters,
     window,
-    studies: pageStudies,
-    page: params.page,
-    perPage: params.perPage,
-    hasMore,
+    studies: pool,
     counts: {
       retrieved,
       duplicatesRemoved: removed,
       rejected,
       eligible: pool.length,
-      displayed: pageStudies.length,
     },
     sources: reports,
     crossrefVerification: verification,
     aggregates: aggregate(pool),
     gaps: analyzeGaps(pool, params.concepts),
     notices,
-    cache: { metadata: 'live', cachedAt: null },
     generatedAt: new Date().toISOString(),
   };
 
   // Never cache a degraded result: a retry should be allowed to reach the source again.
   const degraded = reports.some((r) => r.status === 'error') || notices.some((n) => n.level === 'warning');
   if (!degraded) resultCache.set(cacheKey, response);
-  return response;
-}
-
-function emptyResponse(params: SearchParams, queries: string[], filters: SearchFilters, window: ReturnType<typeof computeWindow>, notices: Notice[]): SearchResponse {
-  return {
-    searchId: randomUUID(),
-    query: queries[0],
-    expandedQueries: queries.slice(1),
-    filters,
-    window,
-    studies: [],
-    page: params.page,
-    perPage: params.perPage,
-    hasMore: false,
-    counts: { retrieved: 0, duplicatesRemoved: 0, rejected: {}, eligible: 0, displayed: 0 },
-    sources: [],
-    crossrefVerification: { checked: 0, verified: 0, notFound: 0, failed: 0 },
-    aggregates: { themes: [], authors: [], types: [], openAccessCount: 0, withAbstractCount: 0 },
-    gaps: { available: false, poolSize: 0, withAbstract: 0, signals: [], disclaimer: '' },
-    notices,
-    cache: { metadata: 'live', cachedAt: null },
-    generatedAt: new Date().toISOString(),
-  };
+  return pageResponse(response, params, null);
 }

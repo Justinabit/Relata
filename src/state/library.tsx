@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Study } from '../../shared/types';
 import { readJson, removeKey, writeJson } from '../lib/storage';
+import { sanitizeLibrary, type LibraryData } from '../lib/library';
 
 /**
  * FUTURE(auth): `LibraryStore` is the persistence boundary. Today it is backed by localStorage.
@@ -8,12 +9,8 @@ import { readJson, removeKey, writeJson } from '../lib/storage';
  * collections, notes, tags) and swap it in `LibraryProvider` — the UI does not change.
  * Saved items hold *verified metadata only*; AI-generated text is never stored as study data.
  */
-export type StoredStudy = Omit<Study, 'abstract' | 'keywords'> & { abstract: null; keywords: string[] };
-export interface SavedStudy { studyId: string; savedAt: string; metadata: StoredStudy; collectionIds: string[] }
-export interface SavedTopic { name: string; savedAt: string }
-export interface SavedQuery { text: string; savedAt: string }
-export interface Collection { id: string; name: string; createdAt: string }
-export interface LibraryData { version: 1; studies: SavedStudy[]; topics: SavedTopic[]; queries: SavedQuery[]; collections: Collection[] }
+export type { StoredStudy, SavedStudy, SavedTopic, SavedQuery, Collection, LibraryData } from '../lib/library';
+export { sanitizeLibrary } from '../lib/library';
 
 const KEY = 'relata:library:v1';
 const EMPTY: LibraryData = { version: 1, studies: [], topics: [], queries: [], collections: [] };
@@ -23,26 +20,6 @@ export interface LibraryStore {
   save(data: LibraryData): boolean;
   clear(): void;
 }
-const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
-const str = (v: unknown) => typeof v === 'string' && v.length > 0;
-
-/** Keeps only well-formed entries so one bad record cannot crash the Saved page or the nav badge. */
-export function sanitizeLibrary(raw: Partial<Record<keyof LibraryData, unknown>>): LibraryData {
-  const list = (v: unknown) => (Array.isArray(v) ? v : []);
-  const seen = new Set<string>();
-  const studies = list(raw.studies).filter((s): s is SavedStudy => {
-    if (!isObj(s) || !str(s.studyId) || seen.has(s.studyId as string) || !isObj(s.metadata)) return false;
-    const m = s.metadata;
-    if (!str(m.title) || !Array.isArray(m.authors) || !Array.isArray(m.sources) || !isObj(m.verification) || !isObj(m.openAccess)) return false;
-    seen.add(s.studyId as string);
-    return true;
-  }).map((s) => ({ ...s, savedAt: str(s.savedAt) ? s.savedAt : new Date(0).toISOString(), collectionIds: Array.isArray(s.collectionIds) ? s.collectionIds.filter(str) : [] }));
-  const topics = list(raw.topics).filter((t): t is SavedTopic => isObj(t) && str(t.name));
-  const queries = list(raw.queries).filter((q): q is SavedQuery => isObj(q) && str(q.text));
-  const collections = list(raw.collections).filter((c): c is Collection => isObj(c) && str(c.id) && str(c.name));
-  return { version: 1, studies, topics, queries, collections };
-}
-
 export const localLibraryStore: LibraryStore = {
   load: () => sanitizeLibrary(readJson<LibraryData>(KEY, EMPTY)),
   save: (d) => writeJson(KEY, d),
