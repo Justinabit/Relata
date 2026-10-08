@@ -90,6 +90,16 @@ Relata is one Node process: it serves the API and the built front end. Any host 
 
 The site also serves `/robots.txt`, which hides the tool and the API from search engines, and a real HTTP 404 for unknown addresses.
 
+### Vercel
+
+Deploy the repository root. `vercel.json` builds the frontend and packages the existing Express app as one Node function through `api/handler.ts`. API requests and page navigation go to Express, preserving redirects, metadata and real 404s; built assets are served directly by Vercel. The standalone `npm start` command is for other Node hosts.
+
+In the Vercel project's environment settings, set `PUBLIC_URL` to your production address, `CONTACT_EMAIL`, and your provider keys as needed. Set `MAX_UPLOAD_MB=4`: Vercel's function request limit is 4.5 MB, including multipart overhead. Enable Fluid compute so the configured 120-second function duration is supported. Visitor IPs are trusted through Vercel's gateway by the function entry point.
+
+Deploy a new build containing this configuration. Redeploying an older commit will keep the old routing. After deployment, `/api/health` must return JSON with `"status":"ok"`; then try a search, a small document upload and a direct visit to `/app/research`.
+
+Caches, rate limits and the verified-study store are held in each function instance's memory. They reset on cold starts and are not shared across instances; an AI summary request may need a fresh search if its studies are unavailable in that instance. For shared limits and state across instances, use a shared store before scaling up.
+
 ## Tests
 
 ```bash

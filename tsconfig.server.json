@@ -11,5 +11,5 @@
     "types": ["node"],
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["server", "shared", "tests"]
+  "include": ["api", "server", "shared", "tests"]
 }
