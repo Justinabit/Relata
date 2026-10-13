@@ -59,13 +59,13 @@ with sync_playwright() as p:
     page.click('.lp-composer button[type=submit]')
     page.wait_for_selector('article.study', timeout=15000)
     check('landing composer opens the research page with results',
-          page.url.endswith('/app/research?q=Social%20media%20and%20academic%20performance') and page.locator('article.study').count() > 0, page.url)
+          '/app/search?q=Social+media+and+academic+performance&' in page.url and page.locator('article.study').count() > 0, page.url)
     check('research page uses the sidebar layout', page.locator('.sidebar').count() == 1)
     check('app: buttons use the 5px radius', radius(page, 'main .btn') == '5px', radius(page, 'main .btn'))
     check('app: sidebar nav links use the 5px radius', radius(page, '.nav__link') == '5px')
     nav_labels = page.locator('.sidebar .nav__link').all_inner_texts()
     check('app navigation is Search, Research, Saved, Settings (no About)', [t.split('\n')[0].strip() for t in nav_labels] == ['Search', 'Research', 'Saved', 'Settings'], str(nav_labels))
-    check('Research is the only active item on /app/research',
+    check('Research is the only active item on /app/search',
           page.locator('.sidebar .nav__link[aria-current=page]').count() == 1 and 'Research' in page.locator('.sidebar .nav__link[aria-current=page]').inner_text())
 
     # brand link goes home
@@ -76,8 +76,8 @@ with sync_playwright() as p:
     # ---- old addresses redirect ----------------------------------------------------------
     page.goto(BASE + '/research?q=Social%20media%20and%20mental%20health')
     page.wait_for_selector('article.study', timeout=15000)
-    check('old /research?q= link redirects and still searches', '/app/research?q=Social%20media%20and%20mental%20health' in page.url, page.url)
-    for old, new in [('/saved', '/app/saved'), ('/settings', '/app/settings')]:
+    check('old /research?q= link redirects and still searches', '/app/search?q=Social+media+and+mental+health&' in page.url, page.url)
+    for old, new in [('/saved', '/app/library'), ('/settings', '/app/settings')]:
         page.goto(BASE + old)
         page.wait_for_selector('h1')
         check(f'old {old} redirects to {new}', page.url.endswith(new), page.url)

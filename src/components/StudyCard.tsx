@@ -6,6 +6,7 @@ import { copyText } from '../lib/export';
 import type { InsightState } from '../state/research';
 import { useLibrary } from '../state/library';
 import { useToast } from '../state/toast';
+import { RelatedStudiesDialog } from './RelatedStudiesDialog';
 import { AITag, Badge, Skeleton, VerifiedTag } from './ui';
 
 interface Props {
@@ -17,6 +18,7 @@ interface Props {
   /** Saved view: no AI blocks, metadata only. */
   compact?: boolean;
   extra?: React.ReactNode;
+  onRelated?: (s: Study) => void;
 }
 
 function DoiBadge({ s }: { s: Study }) {
@@ -32,7 +34,8 @@ function DoiBadge({ s }: { s: Study }) {
   }
 }
 
-export function StudyCard({ study: s, index = 0, insight, insightsExpected, onCite, compact, extra }: Props) {
+export function StudyCard({ study: s, index = 0, insight, insightsExpected, onCite, compact, extra, onRelated }: Props) {
+  const [related, setRelated] = useState<Study | null>(null);
   const [open, setOpen] = useState(false);
   const detailsId = useId();
   const titleId = useId();
@@ -42,11 +45,15 @@ export function StudyCard({ study: s, index = 0, insight, insightsExpected, onCi
   const conflicts = s.verification.conflicts;
   const ins = insight && typeof insight === 'object' ? insight : null;
 
-  const save = () => toast(lib.toggleStudy(s) ? 'Saved to your library' : 'Removed from your library');
+  const save = () => {
+    const result = lib.toggleStudy(s);
+    toast(result === null ? 'The library can hold up to 500 studies. Remove a study before saving another.' : result ? 'Saved to your library' : 'Removed from your library');
+  };
   const copyDoi = async () => s.doi && toast((await copyText(s.doi)) ? 'DOI copied' : 'Copy failed');
 
   return (
     <article className="study" aria-labelledby={titleId} style={{ ['--i' as string]: Math.min(index, 8) }}>
+      {lib.persistFailed && <p role="status">Browser storage is unavailable. Export your library to keep a copy.</p>}
       <header className="study__head">
         <h3 id={titleId} className="study__title">
           {s.url ? (
@@ -66,12 +73,13 @@ export function StudyCard({ study: s, index = 0, insight, insightsExpected, onCi
           {s.openAccess.isOa && <Badge tone="info" icon={<Unlock size={13} aria-hidden="true" />} title={s.openAccess.status ? `Open access status (OpenAlex): ${s.openAccess.status}` : 'Marked open access by OpenAlex'}>Open Access</Badge>}
           <Badge title={`Indexed by ${s.sources.map(sourceLabel).join(' and ')}`}>{s.sources.map(sourceLabel).join(' + ')}</Badge>
           <Badge>{typeLabel(s.type)}</Badge>
-          {s.isRetracted && <Badge tone="danger" icon={<AlertTriangle size={13} aria-hidden="true" />} title="A source flags this work as retracted.">Retracted</Badge>}
           {conflicts.length > 0 && <Badge tone="warn" icon={<AlertTriangle size={13} aria-hidden="true" />} title="OpenAlex and Crossref disagree on some fields. See More details.">Metadata conflict detected</Badge>}
         </div>
       </header>
 
-      {!compact && insightsExpected && (
+      <SourceNotices study={s} />
+      {s.isRetracted && <p className="study__notice">AI summary skipped because this paper has been retracted.</p>}
+      {!s.isRetracted && !compact && insightsExpected && (
         <div className="study__ai">
           <div className="study__block">
             <h4 className="study__label">Why this is relevant <AITag /></h4>
@@ -126,6 +134,7 @@ export function StudyCard({ study: s, index = 0, insight, insightsExpected, onCi
           {saved ? <BookmarkCheck size={16} aria-hidden="true" /> : <Bookmark size={16} aria-hidden="true" />} {saved ? 'Saved' : 'Save'}
         </button>
         <button type="button" className="btn" onClick={() => onCite(s)}><Quote size={16} aria-hidden="true" /> Cite</button>
+        <button type="button" className="btn" onClick={() => onRelated ? onRelated(s) : setRelated(s)}>Related studies</button>
         {extra}
         <button type="button" className="btn btn--ghost study__more" aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen((o) => !o)}>
           More details <ChevronDown size={16} aria-hidden="true" className={open ? 'rot' : ''} />
@@ -135,6 +144,8 @@ export function StudyCard({ study: s, index = 0, insight, insightsExpected, onCi
       <div id={detailsId} className="study__details" hidden={!open}>
         {open && (
           <>
+            <button type="button" className="btn" onClick={save} aria-pressed={saved}>{saved ? 'Remove from library' : 'Save to library'}</button>
+            <SourceNotices study={s} />
             <dl className="dl">
               <dt>DOI</dt>
               <dd>
@@ -172,6 +183,7 @@ export function StudyCard({ study: s, index = 0, insight, insightsExpected, onCi
           </>
         )}
       </div>
+      {related && <RelatedStudiesDialog study={related} onClose={() => setRelated(null)} onCite={(study) => { setRelated(null); onCite(study); }} />}
     </article>
   );
 }
@@ -186,4 +198,11 @@ function Skeletons({ lines }: { lines: number }) {
       {Array.from({ length: lines }, (_, i) => <Skeleton key={i} w={i === lines - 1 ? '62%' : '100%'} h={14} />)}
     </div>
   );
+}
+
+function SourceNotices({ study }: { study: Study }) {
+  return <>{(study.sourceNotices ?? []).map((n, i) => <p key={i} className="study__notice" role="note">
+    <strong>{n.kind === 'retraction' ? 'This paper has been retracted' : 'This paper has a correction'}</strong>. Source: {sourceLabel(n.source)}.
+    {n.doi && <> <a href={`https://doi.org/${encodeURIComponent(n.doi)}`} target="_blank" rel="noopener noreferrer">Read the notice<span className="sr-only"> (opens in a new tab)</span></a></>}
+  </p>)} </>;
 }

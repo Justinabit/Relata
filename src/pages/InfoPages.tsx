@@ -96,7 +96,7 @@ export function PrivacyPage() {
       <p>Relata has no accounts or login, and it does not use analytics, advertising or tracking scripts, or fingerprinting. It does not sell or share data for marketing. It does not set cookies (see the <Link to="/cookies">Cookie Policy</Link>).</p>
 
       <h2>4. Data stored in your browser</h2>
-      <p>Relata stores your preferences, saved studies, topics, searches and collections, and your chosen citation style, in your browser’s local storage. This never leaves your device unless you export it. You can delete it at any time under Settings → Clear local research data.</p>
+      <p>Relata stores your preferences, saved studies, topics, searches and collections, and your chosen citation style, in your browser’s local storage. Recent searches store only your last 8 typed queries and filters under relata:recent-searches:v1, never uploaded document text. Clear them on the Search page or in Settings. Queries longer than 300 characters are not kept in recent history. The library stores up to 500 study records, their ids and dates saved under relata:library:v1. Export a JSON backup or import a previous backup on the library page. Saved in this browser only. Export to keep a copy. You can delete it at any time under Settings → Clear local research data.</p>
 
       <h2>5. Third-party services</h2>
       <ul>
@@ -152,7 +152,8 @@ export function CookiesPage() {
         <thead><tr><th scope="col">Key</th><th scope="col">Purpose</th></tr></thead>
         <tbody>
           <tr><th scope="row"><code>relata:settings:v1</code></th><td>Theme, AI provider preference, research window, results per page, reduced-motion setting.</td></tr>
-          <tr><th scope="row"><code>relata:library:v1</code></th><td>Your saved studies (verified metadata), topics, searches and collections.</td></tr>
+          <tr><th scope="row"><code>relata:recent-searches:v1</code></th><td>The last 8 typed queries and filters. Never uploaded document text. Clear on the Search page.</td></tr>
+          <tr><th scope="row"><code>relata:library:v1</code></th><td>Up to 500 saved study records with ids and dates saved, plus topics, searches and collections. JSON backups can be exported and imported.</td></tr>
           <tr><th scope="row"><code>relata:terms:v1</code></th><td>The date you accepted the Terms and Conditions summary, so the popup is not shown again.</td></tr>
           <tr><th scope="row"><code>relata:onboarded:v1</code></th><td>Whether you have seen or skipped the first-visit introduction.</td></tr>
           <tr><th scope="row"><code>relata:cookies:v1</code></th><td>Your answer to the cookie notice: accepted, or closed.</td></tr>

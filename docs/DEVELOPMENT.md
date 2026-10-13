@@ -50,13 +50,13 @@ python3 tests/e2e/site.py                             # landing page, routing, 5
 | `/` | Landing page with a working search box | public |
 | `/privacy` `/terms` `/cookies` `/disclaimer` `/ai-use` `/about` `/contact` | Policy and info pages | public |
 | `/app` | Search (paste text or upload a file) | tool |
-| `/app/research` `/app/saved` `/app/settings` | Results, saved library, settings | tool |
+| `/app/search` `/app/library` `/app/settings` | Results, saved library, settings | tool |
 
 Old addresses (`/research`, `/saved`, `/settings`) and trailing-slash addresses redirect permanently (301) and keep the query string. Any other unknown address gets a real HTTP 404 with `X-Robots-Tag: noindex`, and the app still shows its "Page not found" screen. All addresses live in `shared/routes.ts`, which both the browser and the server read, so a new page needs one entry there plus one in the route table in `App.tsx`.
 
 ## Going live: public address, sitemap and share previews
 
-Set `PUBLIC_URL` (for example `https://relata.example`) in the environment. With it, the server adds a canonical link and absolute share-image tags to every page and serves `/sitemap.xml`; `/robots.txt` then names the sitemap. Without it the site still works, but there is no sitemap and no canonical or share-image tags, because those need an absolute address. `robots.txt` always hides `/app` and `/api/`. The share image is `public/og-image.png` (1200 x 630); replace it if the headline or logo changes. Share previews show the same title and description on every page.
+Set `PUBLIC_URL` (for example `https://relata.example`) in the environment. With it, the server adds a canonical link and absolute share-image tags to every page and serves `/sitemap.xml`; `/robots.txt` then names the sitemap. Without it the site still works, but there is no sitemap and no canonical or share-image tags, because those need an absolute address. `robots.txt` always hides `/app` and `/api/`. The share image is `public/og-image.png` (1200 x 630); replace it if the headline or logo changes. Each public page has a server-rendered title and description from server/spa.ts.
 
 Design rules: every button-style control uses `--r-btn` (5px) from `src/styles/tokens.css`. Change that one value to restyle all buttons. No gradients, pill shapes, emoji icons, em or en dashes in visible text, or animations tied to scrolling or the cursor.
 
@@ -83,3 +83,35 @@ Nothing about login is visible today. The seams are in place:
 - Server caches (memory only): search results 15 min, AI analysis of short typed queries 1 h, Crossref DOI lookups 24 h.
 - No accounts, analytics or cookies. localStorage keys: `relata:settings:v1`, `relata:library:v1`, `relata:citestyle`, `relata:terms:v1`, `relata:onboarded:v1`, `relata:cookies:v1`.
 - Policy pages are draft text for a personal-use deployment and need review before public launch.
+
+### Saved library
+
+`src/lib/library.ts` validates all imported entries before merging. The versioned `relata:library:v1` key holds at most 500 studies. `/app/saved` redirects to `/app/library`; the existing `/app` robots exclusion covers it, and it is excluded from the public sitemap. `npm run build:vercel` runs the repository's Vercel build (`npm run build`); both hosts currently consume the same dist output.
+
+### Citation export
+
+Pure formatting and export functions live in `shared/citations.ts`. BibTeX collision suffixes are assigned by record id, so changing library sort order keeps keys stable for the same set. CSV neutralizes formula prefixes; RIS strips line breaks from metadata. Run `tests/e2e/citations.py` against the built fixture harness for individual and library exports.
+
+### Search URLs
+
+`shared/search.ts` owns the query and filter Zod schemas used by the API and URL parser. Each parameter is validated independently; duplicate parameters are ignored. `ResearchProvider.start` owns navigation for new searches; history restoration passes `fromUrl` to avoid a new history entry. `tests/e2e/search-links.py` counts search requests without repeated reloads.
+
+### Source notices and lookup recovery
+
+`Study.sourceNotices` retains source attribution. Only Crossref `updated-by` marks this record as affected; `update-to` describes another record and must not flag the notice itself as retracted. Summary requests accept ids only, rebuilding cache misses through `server/research/lookup.ts`. Source flags are excluded from AI prompts and checked before cached summaries. `tests/e2e/source-flags.py` exercises the retracted and corrected fixtures.
+
+### Related studies
+
+`GET /api/studies/:id/related` uses the search rate limiter. The server resolves the parent by id, reads OpenAlex relationships and verifies up to 10 unique candidates with three concurrent lookups. Browser metadata never supplies relationship ids. `tests/e2e/related.py` covers success, empty records and upstream failure in the harness.
+
+### Recent searches
+
+`src/lib/recent-searches.ts` validates the versioned `relata:recent-searches:v1` key and refuses document-origin input before persisting anything. The provider records typed queries and filters only, at most 8, and syncs storage changes between tabs. Settings also clears recent history. `tests/e2e/recent-searches.py` verifies upload exclusion.
+
+
+### Operational updates
+
+- Footer report drafts use `shared/contact.ts` and the health endpoint's configured contact email. The current address is prefilled, including its query string; nothing is sent automatically.
+- `server/spa.ts` replaces default metadata and supplies unique public-page titles, descriptions, Open Graph and Twitter tags. Unknown/app paths use a generic description without user text. PUBLIC_URL still controls canonical and image URLs.
+- See README's shared rate limiting section before introducing Upstash or Vercel KV. A shared store must preserve atomic budgets, trusted IP handling and explicit outage behavior; provider cost approval is required first.
+- Browser smoke check: `tests/e2e/operations.py`. New feature checks: `library.py`, `citations.py`, `search-links.py`, `source-flags.py`, `related.py`, `recent-searches.py`. They use the fixture harness and accept BROWSER_CDP_URL. Pace suites so search requests remain below 40 per minute; avoid repeated reload loops.

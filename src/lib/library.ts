@@ -8,6 +8,9 @@ export interface SavedQuery { text: string; savedAt: string }
 export interface Collection { id: string; name: string; createdAt: string }
 export interface LibraryData { version: 1; studies: SavedStudy[]; topics: SavedTopic[]; queries: SavedQuery[]; collections: Collection[] }
 
+export const LIBRARY_LIMIT = 500;
+export const IMPORT_MAX_BYTES = 10 * 1024 * 1024;
+
 const text = z.string().refine((s) => s.trim().length > 0);
 const timestamp = z.iso.datetime({ offset: true });
 const source = z.enum(['openalex', 'crossref']);
@@ -52,6 +55,7 @@ const metadata: z.ZodType<StoredStudy> = z.object({
   type: z.enum(['article', 'review', 'conference-paper', 'preprint', 'dataset', 'other']),
   rawType: nullableText,
   isRetracted: z.boolean(),
+  sourceNotices: z.array(z.object({ kind: z.enum(['retraction', 'correction']), source, doi: text.nullable() })).optional(),
   verification: z.object({
     doi: z.enum(['verified', 'not-in-crossref', 'unchecked', 'no-doi']),
     verifiedBy: z.array(source).min(1),
@@ -64,7 +68,7 @@ const metadata: z.ZodType<StoredStudy> = z.object({
   retrievedAt: timestamp,
 });
 
-const savedStudy = z.object({ studyId: text, savedAt: timestamp, metadata, collectionIds: z.array(text) });
+const savedStudy = z.object({ studyId: text, savedAt: timestamp, metadata, collectionIds: z.array(text) }).refine((s) => s.studyId === s.metadata.id, 'Study id must match metadata');
 const savedTopic = z.object({ name: text, savedAt: timestamp });
 const savedQuery = z.object({ text, savedAt: timestamp });
 const collection = z.object({ id: text, name: text, createdAt: timestamp });
@@ -88,7 +92,7 @@ export function sanitizeLibrary(raw: unknown): LibraryData {
   const data = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
   const collections = validEntries(data.collections, collection, (c) => c.id);
   const collectionIds = new Set(collections.map((c) => c.id));
-  const studies = validEntries(data.studies, savedStudy, (s) => s.studyId).map((s) => ({
+  const studies = validEntries(data.studies, savedStudy, (s) => s.studyId).slice(0, LIBRARY_LIMIT).map((s) => ({
     ...s, collectionIds: [...new Set(s.collectionIds.filter((id) => collectionIds.has(id)))],
   }));
   return {
@@ -98,4 +102,32 @@ export function sanitizeLibrary(raw: unknown): LibraryData {
     queries: validEntries(data.queries, savedQuery, (q) => q.text.trim().toLowerCase()),
     collections,
   };
+}
+
+/** Imports are strict: reject the whole file before changing the current library. */
+export const libraryImportSchema = z.object({
+  version: z.literal(1), studies: z.array(savedStudy).max(LIBRARY_LIMIT),
+  topics: z.array(savedTopic), queries: z.array(savedQuery),
+  collections: z.array(collection),
+});
+
+export function mergeLibrary(current: LibraryData, raw: unknown): LibraryData {
+  const incoming = libraryImportSchema.parse(raw);
+  const merge = <T,>(a: T[], b: T[], key: (x: T) => string): T[] => {
+    const seen = new Set(a.map(key));
+    return [...a, ...b.filter((x) => { const k = key(x); if (seen.has(k)) return false; seen.add(k); return true; })];
+  };
+  const studies = merge(current.studies, incoming.studies, (s) => s.studyId);
+  if (studies.length > LIBRARY_LIMIT) throw new Error('The library can hold up to 500 studies. Remove studies before importing.');
+  return sanitizeLibrary({
+    version: 1, studies,
+    topics: merge(current.topics, incoming.topics, (t) => t.name.trim().toLowerCase()),
+    queries: merge(current.queries, incoming.queries, (q) => q.text.trim().toLowerCase()),
+    collections: merge(current.collections, incoming.collections, (c) => c.id),
+  });
+}
+
+/** Keep the saved alias stable when Crossref lookup discovers an OpenAlex id. */
+export function refreshSavedStudy(entry: SavedStudy, study: Study): SavedStudy {
+  return { ...entry, metadata: { ...study, id: entry.studyId, abstract: null } };
 }

@@ -29,8 +29,31 @@ export function seoHead(publicUrl: string | null, path: string): string {
   ].join('\n    ');
 }
 
+export const PUBLIC_PAGE_META: Readonly<Record<string, { title: string; description: string }>> = {
+  '/': { title: 'Relata: Find recent, verifiable studies on your topic', description: 'Search OpenAlex and Crossref for scholarly studies with authors, dates and source links.' },
+  '/about': { title: 'About Relata', description: 'How Relata finds scholarly research, verifies source metadata and uses optional AI.' },
+  '/privacy': { title: 'Privacy Policy | Relata', description: 'What Relata processes, what stays in your browser and how to clear your research data.' },
+  '/cookies': { title: 'Cookie Policy | Relata', description: 'Relata uses no cookies. Learn about browser storage for preferences, saved studies and recent searches.' },
+  '/terms': { title: 'Terms and Conditions | Relata', description: 'Terms for using Relata and its scholarly search and optional AI features.' },
+  '/disclaimer': { title: 'Academic Disclaimer | Relata', description: 'Understand the limits of scholarly metadata, search coverage and generated research notes.' },
+  '/ai-use': { title: 'AI Disclosure | Relata', description: 'Where optional AI is used in Relata, what it can read and why source records remain authoritative.' },
+  '/contact': { title: 'Contact | Relata', description: 'Contact the Relata operator with questions or a problem report.' },
+};
+
 export function renderIndex(html: string, publicUrl: string | null, path: string): string {
-  return html.replace(HEAD_MARKER, seoHead(publicUrl, path));
+  const meta = PUBLIC_PAGE_META[path] ?? { title: 'Research | Relata', description: 'Search scholarly sources and manage research saved in your browser.' };
+  const tags = [
+    `<title>${esc(meta.title)}</title>`,
+    `<meta name="description" content="${esc(meta.description)}" />`,
+    `<meta property="og:title" content="${esc(meta.title)}" />`,
+    `<meta property="og:description" content="${esc(meta.description)}" />`,
+    `<meta name="twitter:title" content="${esc(meta.title)}" />`,
+    `<meta name="twitter:description" content="${esc(meta.description)}" />`,
+    seoHead(publicUrl, path),
+  ].join('\n    ');
+  return html.replace(/<title>[\s\S]*?<\/title>/gi, '')
+    .replace(/<meta\s+(?:name|property)="(?:description|og:title|og:description|twitter:title|twitter:description)"[^>]*>/gi, '')
+    .replace(HEAD_MARKER, tags);
 }
 
 export function robotsTxt(publicUrl: string | null): string {

@@ -1,9 +1,11 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Compass, Download, FolderPlus, RefreshCw, Trash2, X } from 'lucide-react';
 import type { Study } from '../../shared/types';
+import { download } from '../lib/export';
+import { IMPORT_MAX_BYTES } from '../lib/library';
 import { api } from '../lib/api';
 import { excerpt, timeAgo } from '../lib/format';
-import { Link, useDocumentTitle, useRouter } from '../lib/router';
+import { Link, useDocumentTitle } from '../lib/router';
 import { ROUTES } from '../lib/routes';
 import { useLibrary, type SavedStudy } from '../state/library';
 import { useResearch } from '../state/research';
@@ -19,7 +21,9 @@ export default function SavedPage() {
   const lib = useLibrary();
   const toast = useToast();
   const { start } = useResearch();
-  const { navigate } = useRouter();
+  const [textFilter, setTextFilter] = useState('');
+  const [sort, setSort] = useState('saved');
+  const [importMessage, setImportMessage] = useState('');
   const [tab, setTab] = useState<Tab>('studies');
   const [rawFilter, setFilter] = useState<string>('all');
   // A collection can disappear (deleted here or in another tab); fall back instead of showing an empty, broken view.
@@ -30,10 +34,10 @@ export default function SavedPage() {
   const [delCollection, setDelCollection] = useState<string | null>(null);
 
   const visible = useMemo(
-    () => lib.data.studies.filter((s) => filter === 'all' || (filter === 'none' ? s.collectionIds.length === 0 : s.collectionIds.includes(filter))),
-    [lib.data.studies, filter],
+    () => lib.data.studies.filter((s) => filter === 'all' || (filter === 'none' ? s.collectionIds.length === 0 : s.collectionIds.includes(filter))).filter((s) => [s.metadata.title, s.metadata.journal, ...s.metadata.authors.map((a) => a.name)].join(' ').toLocaleLowerCase().includes(textFilter.toLocaleLowerCase())).sort((a, b) => sort === 'title' ? a.metadata.title.localeCompare(b.metadata.title) : sort === 'year' ? b.metadata.publicationYear - a.metadata.publicationYear : b.savedAt.localeCompare(a.savedAt)),
+    [lib.data.studies, filter, textFilter, sort],
   );
-  const explore = (t: string) => { start(t, { origin: 'text' }); navigate(`${ROUTES.research}?q=${encodeURIComponent(t)}`); };
+  const explore = (t: string) => { start(t, { origin: 'text' }); };
 
   const addCollection = (e: FormEvent) => {
     e.preventDefault();
@@ -67,10 +71,25 @@ export default function SavedPage() {
     <div className="page">
       <header className="pagehead">
         <h1>Saved research</h1>
-        <p className="muted">Your reading list, saved in this browser. Records contain source metadata only. Accounts and cloud sync are not available yet.</p>
+        <p className="muted">Saved in this browser only. Export to keep a copy.</p>
       </header>
       {lib.persistFailed && <Callout tone="warn" title="Your browser blocked saving">Saved items will be lost when you close this tab. Check that site data or private browsing is not restricted.</Callout>}
 
+      <div className="row row--wrap">
+        <button type="button" className="btn" disabled={!lib.data.studies.length} onClick={() => setCite({ title: 'Cite library', studies: lib.data.studies.map((s) => s.metadata) })}>Cite whole library</button>
+        <button type="button" className="btn" onClick={() => download('relata-library.json', JSON.stringify(lib.data, null, 2), 'application/json')}>Export library JSON</button>
+        <label className="btn">Import library JSON
+          <input className="input" type="file" accept=".json,application/json" aria-label="Import library JSON" onChange={async (e) => {
+            const file = e.currentTarget.files?.[0]; e.currentTarget.value = '';
+            if (!file) return;
+            if (file.size > IMPORT_MAX_BYTES) { setImportMessage('This file is too large. Choose a library JSON file under 10 MB.'); return; }
+            try { lib.importLibrary(JSON.parse(await file.text())); setImportMessage('Library imported. Existing studies were kept without duplicates.'); }
+            catch (error) { setImportMessage(error instanceof Error && error.message.startsWith('The library can hold') ? error.message : 'This file is not a valid Relata library. Choose a library JSON export.'); }
+          }} />
+        </label>
+      </div>
+      {importMessage && <p role="status">{importMessage}</p>}
+      {lib.data.studies.length >= 500 && <Callout title="Library limit reached">The library can hold up to 500 studies. Remove studies before adding more.</Callout>}
       {isEmpty ? (
         <EmptyState title="Your research library is empty." action={<Link to={ROUTES.app} className="btn btn--primary">Find studies to save</Link>}>
           <p>Save a study, topic or search to build your personal research collection. Use the Save button on any result.</p>
@@ -97,6 +116,8 @@ export default function SavedPage() {
           {tab === 'studies' && (
             <div role="tabpanel" id="panel-studies" aria-labelledby="tab-studies" className="saved">
               <div className="saved__tools">
+                <label>Filter saved studies<input className="input" value={textFilter} onChange={(e) => setTextFilter(e.target.value)} type="search" /></label>
+                <label>Sort saved studies<select className="select" value={sort} onChange={(e) => setSort(e.target.value)}><option value="saved">Date saved</option><option value="year">Year</option><option value="title">Title</option></select></label>
                 <div className="chips chips--filters" role="group" aria-label="Collections">
                   {[{ id: 'all', name: 'All' }, { id: 'none', name: 'Uncategorised' }, ...lib.data.collections.map((c) => ({ id: c.id, name: c.name }))].map((c) => (
                     <button key={c.id} type="button" className="chip chip--btn" aria-pressed={filter === c.id} onClick={() => setFilter(c.id)}>{c.name}</button>

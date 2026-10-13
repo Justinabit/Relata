@@ -65,6 +65,7 @@ export const api = {
     request<SummarizeResponse>('/api/ai/summarize', { method: 'POST', json: body, signal }),
   topicCounts: (body: { names: string[]; yearsBack: number }, signal?: AbortSignal) =>
     request<{ available: boolean; counts: TopicCount[] }>('/api/topics/counts', { method: 'POST', json: body, signal }),
+  related: (id: string, signal?: AbortSignal) => request<{ studies: Study[]; partial: boolean }>(`/api/studies/${encodeURIComponent(id)}/related`, { signal }),
   study: (id: string, signal?: AbortSignal) => request<{ study: Study; retrievedLive: boolean }>(`/api/studies/${encodeURIComponent(id)}`, { signal }),
   upload: (file: File, signal?: AbortSignal) => {
     const fd = new FormData();

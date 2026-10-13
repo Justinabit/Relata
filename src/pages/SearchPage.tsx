@@ -4,7 +4,7 @@ import type { UploadResponse } from '../../shared/types';
 import { computeWindow } from '../../shared/window';
 import { api, ApiError } from '../lib/api';
 import { nf, excerpt } from '../lib/format';
-import { Link, useDocumentTitle, useRouter } from '../lib/router';
+import { Link, useDocumentTitle } from '../lib/router';
 import { ROUTES } from '../lib/routes';
 import { useHealth } from '../state/health';
 import { useLibrary } from '../state/library';
@@ -35,8 +35,7 @@ function providerNames(pref: string, h: ReturnType<typeof useHealth>['health']):
 
 export default function SearchPage() {
   useDocumentTitle('');
-  const { start } = useResearch();
-  const { navigate } = useRouter();
+  const { start, recentSearches, recentFailed, clearRecentSearches } = useResearch();
   const { settings } = useSettings();
   const { health } = useHealth();
   const lib = useLibrary();
@@ -68,11 +67,11 @@ export default function SearchPage() {
     }
     if (doc) {
       start(doc.text, { origin: 'document', docName: doc.fileName, useAI: aiOn });
-      navigate(ROUTES.research);
+
     } else {
       const t = text.trim();
       start(t, { origin: 'text', useAI: aiOn });
-      navigate(ROUTES.research + (t.length <= 300 ? `?q=${encodeURIComponent(t)}` : ''));
+
     }
   };
 
@@ -179,6 +178,15 @@ export default function SearchPage() {
         </div>
       </form>
 
+      <section aria-labelledby="recent-searches">
+        <h2 id="recent-searches">Recent searches</h2>
+        <p className="small muted">The last 8 typed queries and their filters, saved in this browser. Uploaded document text is never stored here.</p>
+        {recentFailed && <Callout tone="warn">Recent search storage is unavailable or unreadable. History may be lost when this tab closes.</Callout>}
+        {recentSearches.length ? <>
+          <button type="button" className="btn" onClick={clearRecentSearches}>Clear recent searches</button>
+          <ul className="examples__list">{recentSearches.map((recent, i) => <li key={i}><button type="button" className="example" onClick={() => start(recent.query, { origin: 'text', filters: recent.filters, useAI: aiOn })}>{recent.query}</button></li>)}</ul>
+        </> : <p className="muted">No recent searches.</p>}
+      </section>
       <div className="search-lower">
         <section aria-labelledby={`${id}-ex`} className="examples">
           <h2 id={`${id}-ex`} className="label">Try an example</h2>

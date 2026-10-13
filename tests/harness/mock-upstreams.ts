@@ -24,6 +24,9 @@ const work = (n: number) => ({
   publication_date: `${2026 - (n % 10)}-0${(n % 9) + 1}-15`,
   type: n % 7 === 0 ? 'review' : 'article',
   cited_by_count: (n * 37) % 410,
+  is_retracted: n === 1,
+  related_works: n === 2 ? [] : [1, 2, 4, 5, 6, 7].filter((id) => id !== n).map((id) => `https://openalex.org/W${3000000000 + id}`),
+  referenced_works: n === 2 ? [] : [4, 8, 9, 10, 11, 12, 13, 14].map((id) => `https://openalex.org/W${3000000000 + id}`),
   open_access: { is_oa: n % 3 === 0, oa_status: n % 3 === 0 ? 'gold' : 'closed', oa_url: n % 3 === 0 ? `https://example.invalid/oa/${n}` : null },
   primary_location: { source: { display_name: n % 2 ? 'Journal of Fixture Studies' : 'Fixture Review of Education' }, landing_page_url: null },
   authorships: [{ author: { display_name: 'Ana Reyes', orcid: n % 4 ? null : 'https://orcid.org/0000-0000-0000-0001' } }, { author: { display_name: n % 2 ? 'Jon Cruz' : 'Mei Lin' } }],
@@ -35,8 +38,10 @@ globalThis.fetch = (async (input: any, init?: any) => {
   const url = String(input);
   if (url.startsWith('https://api.openalex.org/works')) {
     const u = new URL(url);
+    const single = u.pathname.match(/^\/works\/W(\d+)$/);
+    if (single) { const n = Number(single[1]) - 3000000000; if (n === 3 && u.searchParams.get('select')?.includes('related_works')) return json({}, 503); return n >= 1 && n <= 50 ? json(work(n)) : json({}, 404); }
     const per = Math.min(Number(u.searchParams.get('per_page') ?? 25), 50);
-    return json({ meta: { count: 4821 }, results: Array.from({ length: per }, (_, i) => work(i + 1)) });
+    return json({ meta: { count: 50 }, results: Array.from({ length: per }, (_, i) => work(i + 1)) });
   }
   if (url.startsWith('https://api.crossref.org/works')) {
     const dois = [...(new URL(url).searchParams.get('filter') ?? '').matchAll(/doi:([^,]+)/g)].map((m) => m[1]);
@@ -45,6 +50,7 @@ globalThis.fetch = (async (input: any, init?: any) => {
       return {
         DOI: d, title: [`[Fixture] Social media use and academic outcomes, record ${n}`], author: [{ given: 'Ana', family: 'Reyes' }, { given: 'Jon', family: 'Cruz' }],
         issued: { 'date-parts': [[n === 2 ? 2024 : 2026 - (n % 10), ((n % 9) + 1), 15]] }, 'container-title': [n % 2 ? 'Journal of Fixture Studies' : 'Fixture Review of Education'],
+        'updated-by': n === 2 ? [{ type: 'correction', DOI: '10.9999/correction.2' }] : n === 1 ? [{ type: 'retraction', DOI: '10.9999/retraction.1' }] : [],
         publisher: 'Fixture Press', type: 'journal-article', 'is-referenced-by-count': 3,
       };
     });

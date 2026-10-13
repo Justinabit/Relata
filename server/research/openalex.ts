@@ -124,6 +124,7 @@ export function normalizeOpenAlexWork(w: Raw, now = new Date()): Study | null {
     type,
     rawType: raw,
     isRetracted: w.is_retracted === true,
+    sourceNotices: w.is_retracted === true ? [{ kind: 'retraction', source: 'openalex', doi: null }] : [],
     verification: { doi: doi ? 'unchecked' : 'no-doi', verifiedBy: ['openalex'], conflicts: [] },
     matchedQueries: 1,
     retrievedAt: now.toISOString(),
@@ -206,7 +207,8 @@ export async function lookupOpenAlexByDois(dois: string[], signal?: AbortSignal)
 export async function getOpenAlexWork(shortId: string, signal?: AbortSignal): Promise<Study | null> {
   try {
     const w = await oaGet<Raw>(`/works/${shortId}`, { select: SELECT }, signal);
-    return normalizeOpenAlexWork(w);
+    const study = normalizeOpenAlexWork(w);
+    return study?.openalexId === shortId ? study : null;
   } catch (err) {
     if (err instanceof UpstreamError && err.status === 404) return null;
     throw err;
@@ -253,4 +255,13 @@ export async function getOpenAlexTopic(shortId: string, signal?: AbortSignal): P
     if (err instanceof UpstreamError && err.status === 404) return null;
     throw err;
   }
+}
+
+/** Relations are read from OpenAlex by id, never from a browser's saved metadata. */
+export async function getOpenAlexRelatedIds(shortId: string, signal?: AbortSignal): Promise<string[]> {
+  const raw = await oaGet<Raw>(`/works/${shortId}`, { select: 'id,related_works,referenced_works' }, signal);
+  if (openalexShortId(raw.id) !== shortId) throw new UpstreamError('OpenAlex', 'invalid', 'OpenAlex returned a different record.');
+  const related = Array.isArray(raw.related_works) ? raw.related_works : [];
+  const referenced = Array.isArray(raw.referenced_works) ? raw.referenced_works : [];
+  return [...new Set([...related, ...referenced].map(openalexShortId).filter((id): id is string => !!id && id.startsWith('W') && id !== shortId))].slice(0, 10);
 }

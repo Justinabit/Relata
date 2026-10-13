@@ -5,6 +5,7 @@ import { computeWindow, YEARS_BACK_OPTIONS, yearsLabel } from '../../shared/wind
 import { removeKey } from '../lib/storage';
 import { useDocumentTitle } from '../lib/router';
 import { useHealth } from '../state/health';
+import { useResearch } from '../state/research';
 import { useLibrary } from '../state/library';
 import { useSettings, type ThemePref } from '../state/settings';
 import { useToast } from '../state/toast';
@@ -35,6 +36,7 @@ export default function SettingsPage() {
   const { settings, update } = useSettings();
   const { health } = useHealth();
   const lib = useLibrary();
+  const { clearRecentSearches } = useResearch();
   const toast = useToast();
   const [confirm, setConfirm] = useState(false);
   const w = computeWindow(settings.yearsBack);
@@ -98,7 +100,7 @@ export default function SettingsPage() {
       <Dialog open={confirm} onClose={() => setConfirm(false)} title="Clear local research data?">
         <p>This permanently deletes your saved studies, topics, searches and collections from this browser. It cannot be undone.</p>
         <div className="row mt14">
-          <button type="button" className="btn btn--danger" onClick={() => { lib.clearAll(); removeKey('relata:citestyle'); setConfirm(false); toast('Local research data cleared'); }}>Delete everything</button>
+          <button type="button" className="btn btn--danger" onClick={() => { lib.clearAll(); clearRecentSearches(); removeKey('relata:citestyle'); setConfirm(false); toast('Local research data cleared'); }}>Delete everything</button>
           <button type="button" className="btn" onClick={() => setConfirm(false)}>Cancel</button>
         </div>
       </Dialog>

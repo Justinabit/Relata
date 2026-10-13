@@ -1,7 +1,7 @@
 import { useId, useRef, useState, type FormEvent } from 'react';
 import { computeWindow } from '../../shared/window';
 import { nf } from '../lib/format';
-import { Link, useDocumentTitle, useRouter } from '../lib/router';
+import { Link, useDocumentTitle } from '../lib/router';
 import { ROUTES } from '../lib/routes';
 import { useHealth } from '../state/health';
 import { useResearch } from '../state/research';
@@ -30,7 +30,6 @@ const CHECKS: { term: string; text: string }[] = [
 export default function LandingPage() {
   useDocumentTitle('');
   const { start } = useResearch();
-  const { navigate } = useRouter();
   const { settings } = useSettings();
   const { health } = useHealth();
   const [text, setText] = useState('');
@@ -52,7 +51,7 @@ export default function LandingPage() {
     }
     const t = text.trim();
     start(t, { origin: 'text', useAI: aiOn });
-    navigate(ROUTES.research + (t.length <= 300 ? `?q=${encodeURIComponent(t)}` : ''));
+
   };
 
   return (

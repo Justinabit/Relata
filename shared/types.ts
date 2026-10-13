@@ -74,6 +74,7 @@ export interface Study {
   type: StudyType;
   rawType: string | null;
   isRetracted: boolean;
+  sourceNotices?: { kind: 'retraction' | 'correction'; source: SourceId; doi: string | null }[];
   verification: Verification;
   /** How many of the search queries retrieved this record (internal "search relevance" signal). */
   matchedQueries: number;
@@ -84,6 +85,7 @@ export interface SearchFilters {
   yearsBack: YearsBack;
   sources: SourceId[];
   openAccessOnly: boolean;
+  hideRetracted?: boolean;
   type: TypeFilter;
   sort: SortKey;
 }
@@ -218,6 +220,8 @@ export interface SummarizeResponse {
   ai: AIInfo;
   /** Ids requested that the server no longer holds verified records for. */
   missing: string[];
+  /** Retractions reported by sources; these never reach the AI. */
+  skipped?: string[];
 }
 
 export interface TopicCount {

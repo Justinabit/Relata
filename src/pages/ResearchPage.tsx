@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Bookmark, BookmarkCheck, ChevronDown, Download, FilterX, Pencil, RefreshCw } from 'lucide-react';
+import { parseSearchParams, searchLink } from '../../shared/search';
+import { copyText } from '../lib/export';
 import type { Study } from '../../shared/types';
 import { nf, excerpt } from '../lib/format';
 import { Link, useDocumentTitle, useRouter } from '../lib/router';
@@ -17,22 +19,30 @@ import { Callout, EmptyState, FilterSkeleton, RailSkeleton, Section, StudyCardSk
 export default function ResearchPage() {
   useDocumentTitle('Research');
   const { session: s, start, setFilters, loadMore, retry, insightsExpected } = useResearch();
-  const { search, navigate } = useRouter();
+  const { search, path, navigate } = useRouter();
   const lib = useLibrary();
   const { settings } = useSettings();
   const toast = useToast();
   const [cite, setCite] = useState<CiteTarget | null>(null);
-  const q = search.get('q');
+  const parsed = parseSearchParams(search);
+  const q = parsed.query;
+  const urlKey = search.toString();
+  const [linkMessage, setLinkMessage] = useState('');
 
-  // Deep link / reload / back-forward: (re)run the search that the URL describes.
+  // The URL owns shared search state. Filter changes and history navigation use this same path.
   useEffect(() => {
-    if (q && q.trim() !== s.input.trim()) start(q.trim(), { useAI: s.useAI });
+    if (!q) return;
+    const canonical = searchLink(q, parsed.filters);
+    if (path + '?' + urlKey !== canonical) navigate(canonical, { replace: true });
+    if (q !== s.input.trim() || s.phase === 'idle') start(q, { useAI: s.useAI, filters: parsed.filters, fromUrl: true });
+    else if (searchLink(q, s.filters) !== canonical) setFilters(parsed.filters);
+    // Only URL navigation restores state; session updates must not rerun a search.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q]);
+  }, [urlKey]);
 
   const explore = (term: string) => {
     start(term, { origin: 'text', useAI: s.useAI });
-    navigate(`${ROUTES.research}?q=${encodeURIComponent(term)}`);
+
   };
 
   if (s.phase === 'idle' && !q) {
@@ -51,7 +61,7 @@ export default function ResearchPage() {
   const directions = s.analysis?.analysis?.researchDirections ?? [];
   const showAIProblem = s.useAI && s.analysis && s.analysis.ai.status !== 'ok' && s.analysis.ai.status !== 'disabled';
   const winLabel = r?.window.label;
-  const resetFilters = () => setFilters({ yearsBack: settings.yearsBack, openAccessOnly: false, type: 'any', sort: 'relevance', sources: ['openalex'] });
+  const resetFilters = () => setFilters({ yearsBack: settings.yearsBack, openAccessOnly: false, hideRetracted: false, type: 'any', sort: 'relevance', sources: ['openalex'] });
   const widen = () => setFilters({ yearsBack: s.filters.yearsBack < 10 ? 10 : s.filters.yearsBack === 10 ? 15 : 25 });
   const canWiden = s.filters.yearsBack < 25;
 
@@ -64,6 +74,11 @@ export default function ResearchPage() {
           {winLabel && <p className="qbar__window">Research window: <strong>{winLabel}</strong>{r?.window.outsideDefault && <span className="qbar__outside"> · Outside the default 10-year research window</span>}</p>}
         </div>
         <div className="qbar__actions">
+          {s.origin === 'text' && s.input.length <= 300 && s.input && <button type="button" className="btn btn--sm" onClick={async () => {
+            const ok = await copyText(new URL(searchLink(s.input, s.filters), window.location.origin).href);
+            setLinkMessage(ok ? 'Search link copied' : 'Copy failed. Copy the address from your browser.');
+          }}>Copy link to this search</button>}
+          {linkMessage && <p role="status">{linkMessage}</p>}
           <Link to={ROUTES.app} className="btn btn--sm"><Pencil size={15} aria-hidden="true" /> New search</Link>
           {s.origin === 'text' && (
             <button type="button" className="btn btn--sm" aria-pressed={querySaved} onClick={() => toast(lib.toggleQuery(s.input) ? 'Search saved' : 'Saved search removed')}>

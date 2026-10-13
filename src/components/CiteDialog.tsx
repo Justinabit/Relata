@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Copy, Download } from 'lucide-react';
 import type { Study } from '../../shared/types';
-import { CITATION_STYLES, formatBibliography, formatCitation, studyInfoText, type CitationStyle } from '../../shared/citations';
+import { studiesToBibtex, studiesToRis, CITATION_STYLES, formatBibliography, formatCitation, studyInfoText, type CitationStyle } from '../../shared/citations';
 import { copyText, download, studiesToCsv, studiesToJson } from '../lib/export';
 import { readString, writeString } from '../lib/storage';
 import { useToast } from '../state/toast';
@@ -45,7 +45,7 @@ export function CiteDialog({ target, onClose }: { target: CiteTarget | null; onC
       <label className="sr-only" htmlFor="cite-text">{single ? 'Citation' : 'Bibliography'}</label>
       <textarea id="cite-text" className="input input--mono cite-text" readOnly value={text} rows={single ? 5 : 10} onFocus={(e) => e.currentTarget.select()} />
       <p className="small muted">
-        Built only from verified metadata. Unavailable fields are shown as placeholders such as “[Author unavailable]”, never guessed.
+        Built only from verified metadata. Missing fields are omitted. Author lists and name order may be incomplete in source records.
         {missing > 0 && ` ${missing} of ${studies.length} ${missing === 1 ? 'record has' : 'records have'} incomplete metadata.`} Check formatting against your style guide before submitting.
       </p>
       <div className="row row--wrap mt14">
@@ -60,7 +60,7 @@ export function CiteDialog({ target, onClose }: { target: CiteTarget | null; onC
         <button type="button" className="btn" onClick={() => download(`${slug}-bibliography-${style}.txt`, text + '\n', 'text/plain')}>
           <Download size={16} aria-hidden="true" /> Download .txt
         </button>
-        {!single && (
+        {studies.length > 0 && (
           <>
             <button type="button" className="btn" onClick={() => download(`${slug}-results.csv`, studiesToCsv(studies), 'text/csv')}>
               <Download size={16} aria-hidden="true" /> Results .csv
@@ -70,6 +70,8 @@ export function CiteDialog({ target, onClose }: { target: CiteTarget | null; onC
             </button>
           </>
         )}
+        <button type="button" className="btn" onClick={() => download(`${slug}.bib`, studiesToBibtex(studies), 'application/x-bibtex')}>Download BibTeX</button>
+        <button type="button" className="btn" onClick={() => download(`${slug}.ris`, studiesToRis(studies), 'application/x-research-info-systems')}>Download RIS</button>
       </div>
     </Dialog>
   );

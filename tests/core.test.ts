@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { computeWindow } from '../shared/window.js';
 import { capabilitiesFor, reconcileFilters } from '../shared/capabilities.js';
-import { formatCitation, PLACEHOLDER_AUTHOR } from '../shared/citations.js';
+import { formatCitation } from '../shared/citations.js';
 import { normalizeOpenAlexWork } from '../server/research/openalex.js';
 import { normalizeCrossrefWork } from '../server/research/crossref.js';
 import { dedupe } from '../server/research/dedupe.js';
@@ -185,10 +185,10 @@ test('upload validation rejects unsupported types', () => {
   assert.equal(detectKind('notes.md', 'text/markdown'), 'md');
 });
 
-test('citations use placeholders instead of inventing metadata', () => {
+test('citations omit missing metadata', () => {
   const s = normalizeOpenAlexWork(oaWork({ authorships: [], primary_location: {} }))!;
   const apa = formatCitation(s, 'apa');
-  assert.ok(apa.startsWith(PLACEHOLDER_AUTHOR));
+  assert.ok(apa.startsWith(s.title));
   assert.ok(apa.includes('https://doi.org/10.1234/abc.2024.1'));
   const full = normalizeOpenAlexWork(oaWork())!;
   assert.equal(formatCitation(full, 'apa'), 'Reyes, A., & Cruz, B. (2024). Social media use and academic performance. Journal of Tests. https://doi.org/10.1234/abc.2024.1');

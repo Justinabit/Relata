@@ -71,6 +71,7 @@ export function reconcile(oa: Study, cr: Study): Study {
     sources,
     source: oa.source,
     isRetracted: oa.isRetracted || cr.isRetracted,
+    sourceNotices: [...(oa.sourceNotices ?? []), ...(cr.sourceNotices ?? [])],
     matchedQueries: Math.max(oa.matchedQueries, cr.matchedQueries),
     verification: { doi: 'verified', verifiedBy: ['openalex', 'crossref'], conflicts },
   };

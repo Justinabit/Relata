@@ -6,6 +6,7 @@ import { cleanAIString, hasForbiddenReference, numbersGrounded } from './guard.j
 import { runStructured, unavailableInfo } from './manager.js';
 import { SUMMARIZE_SYSTEM, buildSummarizeUser, type SourceRecordForAI } from './prompts.js';
 import { SummarizeSchema } from './schemas.js';
+import { lookupStudy } from '../research/lookup.js';
 import { studyStore } from '../research/store.js';
 
 const insightCache = new TtlCache<StudyInsight>(2000, config.retention.insightCacheSeconds * 1000);
@@ -33,18 +34,34 @@ export async function summarizeStudies(opts: {
   const topicKey = sha256(topic).slice(0, 16);
   const insights: Record<string, StudyInsight> = {};
   const missing: string[] = [];
-  const pending: { ref: string; study: Study }[] = [];
+  const skipped: string[] = [];
+  const pending: { ref: string; study: Study; requestedId: string }[] = [];
 
-  opts.ids.forEach((id) => {
-    const study = studyStore.get(id)?.value;
+  // Bound concurrent recovery so cold instances do not serialize every upstream roundtrip.
+  const recovered = new Map<string, Study>();
+  const queue = [...new Set(opts.ids)];
+  await Promise.all(Array.from({ length: Math.min(3, queue.length) }, async () => {
+    while (queue.length) {
+      const id = queue.shift()!;
+      let study = studyStore.get(id)?.value;
+      if (!study) {
+        try { study = await lookupStudy(id, opts.signal); }
+        catch { if (opts.signal?.aborted) throw opts.signal.reason; }
+      }
+      if (study) recovered.set(id, study);
+    }
+  }));
+  for (const id of opts.ids) {
+    const study = recovered.get(id);
     if (!study) {
       missing.push(id);
-      return;
+      continue;
     }
+    if (study.isRetracted) { skipped.push(id); continue; }
     const cached = insightCache.get(`${id}|${topicKey}`)?.value;
     if (cached) insights[id] = { ...cached, fromCache: true };
-    else pending.push({ ref: `s${pending.length + 1}`, study });
-  });
+    else pending.push({ ref: `s${pending.length + 1}`, study, requestedId: id });
+  }
 
   let ai: AIInfo = { status: 'ok' };
   if (pending.length) {
@@ -66,11 +83,12 @@ export async function summarizeStudies(opts: {
         signal: opts.signal,
       });
       ai = out.ai;
-      const byRef = new Map(pending.map((p) => [p.ref, p.study]));
+      const byRef = new Map(pending.map((p) => [p.ref, p]));
       const done = new Set<string>();
       for (const item of out.data.items) {
-        const study = byRef.get(item.ref);
-        if (!study || done.has(item.ref)) continue; // refs the model made up are ignored
+        const record = byRef.get(item.ref);
+        if (!record || done.has(item.ref)) continue;
+        const { study, requestedId } = record; // refs the model made up are ignored
         done.add(item.ref);
         const src = sourceText(study);
         const hasAbstract = !!study.abstract && study.abstract.length >= MIN_ABSTRACT;
@@ -87,14 +105,14 @@ export async function summarizeStudies(opts: {
           status: summary || relevance ? 'ok' : 'insufficient',
           fromCache: false,
         };
-        insights[study.id] = insight;
+        insights[requestedId] = insight;
         // An empty result may be a transient model miss; only successful notes are cached.
-        if (insight.status === 'ok') insightCache.set(`${study.id}|${topicKey}`, insight);
+        if (insight.status === 'ok') insightCache.set(`${requestedId}|${topicKey}`, insight);
       }
     } catch (err) {
       if (opts.signal?.aborted) throw err;
       ai = unavailableInfo(err);
     }
   }
-  return { insights, ai, missing };
+  return { insights, ai, missing, skipped };
 }

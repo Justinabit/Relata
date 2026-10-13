@@ -2,6 +2,8 @@ import { type ReactNode } from 'react';
 import { BookOpen, Bookmark, Moon, Search, Settings, Sun } from 'lucide-react';
 import { Link, useRouter } from '../lib/router';
 import { ROUTES } from '../lib/routes';
+import { problemReportLink } from '../../shared/contact';
+import { useHealth } from '../state/health';
 import { computeWindow } from '../../shared/window';
 import { useLibrary } from '../state/library';
 import { useResearch } from '../state/research';
@@ -12,7 +14,7 @@ import { Wordmark } from './Logo';
 /** Navigation inside the research tool. */
 const NAV = [
   { to: ROUTES.app, label: 'Search', Icon: Search },
-  { to: ROUTES.research, label: 'Research', Icon: BookOpen },
+  { to: ROUTES.search, label: 'Research', Icon: BookOpen },
   { to: ROUTES.saved, label: 'Saved', Icon: Bookmark },
   { to: ROUTES.settings, label: 'Settings', Icon: Settings },
 ] as const;
@@ -124,6 +126,9 @@ export function PublicHeader() {
 
 export function Footer() {
   const year = new Date().getFullYear();
+  const { health } = useHealth();
+  useRouter(); // Refresh the draft address after client-side navigation.
+  const reportHref = problemReportLink(health?.contactEmail ?? null, window.location.href);
   return (
     <footer className="footer">
       <div className="footer__grid">
@@ -138,6 +143,7 @@ export function Footer() {
             <li><Link to={ROUTES.app}>Search</Link></li>
             <li><Link to={ROUTES.about}>About</Link></li>
             <li><Link to={ROUTES.contact}>Contact</Link></li>
+            <li>{reportHref ? <a href={reportHref}>Report a problem</a> : <Link to={ROUTES.contact}>Report a problem</Link>}</li>
           </ul>
         </nav>
         <nav aria-label="Legal and policies" className="footer__col">

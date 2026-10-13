@@ -108,7 +108,7 @@ describe('page requests over HTTP', () => {
     const b = await get('/research?q=climate%20change');
     assert.equal(b.status, 301);
     assert.equal(b.headers.get('location'), '/app/research?q=climate%20change');
-    assert.equal((await get('/saved')).headers.get('location'), '/app/saved');
+    assert.equal((await get('/saved')).headers.get('location'), '/app/library');
   });
 
   test('sitemap and robots.txt use the public address; the API and other methods are untouched', async () => {

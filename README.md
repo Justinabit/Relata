@@ -8,7 +8,7 @@ Relata is a research discovery tool for students and researchers. Paste a topic,
 
 ## Status
 
-Relata is pre-launch. It has been tested with stubbed and fixture data, not against live OpenAlex, Crossref or AI services. Before relying on the results, run it with real keys and check a few topics you know well. The Privacy, Terms and Cookie pages are draft text and need a legal review before a public launch. See [Deploying](#deploying).
+Relata has been tested with stubbed and fixture data, not against live OpenAlex, Crossref or AI services. Before relying on the results, run it with real keys and check a few topics you know well. The Privacy, Terms and Cookie pages are draft text and need a legal review before a public launch. See [Deploying](#deploying).
 
 ## What it does
 
@@ -16,7 +16,7 @@ Relata is pre-launch. It has been tested with stubbed and fixture data, not agai
 - Checks DOIs against Crossref and marks each one "Verified DOI", "DOI not found in Crossref" or "DOI unchecked". When the two sources disagree, it says so and shows both values.
 - Filters by publication window (1, 3, 5 or 10 years by default, older ranges clearly labelled), study type, open access and source.
 - Saves studies, topics and searches in the browser, with collections. No account is needed.
-- Copies citations in APA 7, MLA 9 or Chicago 17, and exports results as .txt, .csv or .json.
+- Copies citations in APA 7, MLA 9 or Chicago (author-date), and exports results as .txt, .csv or .json.
 - Reads uploaded documents in server memory and discards them. Nothing is written to disk.
 - Works without AI. If no AI key is set, or the AI service fails, search, verification, filters, saving and citations all still work.
 - Light and dark themes, keyboard navigation, and a layout that works on phones.
@@ -78,7 +78,7 @@ Everything is set through environment variables, read on the server only. Keys a
 
 ## Deploying
 
-Relata is one Node process: it serves the API and the built front end. Any host that runs `npm run build` and `npm start` on Node 20 or newer will do. Before you go public:
+Relata is one Node process: it serves the API and the built front end. Any host that runs `npm run build` and `npm start` on Node 20 or newer will do. Before deploying changes:
 
 1. **Set `CONTACT_EMAIL`** to an address you monitor. Without it the Contact page says none is set.
 2. **Set `PUBLIC_URL`** to your final address, for example `https://relata.example`. Without it there is no sitemap, canonical link or share image.
@@ -98,7 +98,7 @@ In the Vercel project's environment settings, set `PUBLIC_URL` to your productio
 
 Deploy a new build containing this configuration. Redeploying an older commit will keep the old routing. After deployment, `/api/health` must return JSON with `"status":"ok"`; then try a search, a small document upload and a direct visit to `/app/research`.
 
-Caches, rate limits and the verified-study store are held in each function instance's memory. They reset on cold starts and are not shared across instances; an AI summary request may need a fresh search if its studies are unavailable in that instance. For shared limits and state across instances, use a shared store before scaling up.
+Caches, rate limits and the verified-study store are held in each function instance's memory. They reset on cold starts and are not shared across instances; summary requests rebuild verified records by id when the instance has no cached study. For shared limits and state across instances, use a shared store before scaling up.
 
 ## Tests
 
@@ -129,7 +129,7 @@ Built with Express 5, React 19, Vite and TypeScript. There is no database. Searc
 |---|---|
 | `/` | Landing page with a working search box |
 | `/app` | Search: paste text or upload a file |
-| `/app/research`, `/app/saved`, `/app/settings` | Results, saved library, settings |
+| `/app/search`, `/app/library`, `/app/settings` | Results, saved library, settings |
 | `/about`, `/contact`, `/privacy`, `/terms`, `/cookies`, `/disclaimer`, `/ai-use` | Information and policy pages |
 
 ## Design rules
@@ -152,7 +152,7 @@ No accounts, analytics, advertising trackers or cookies. Settings, saved studies
 - Scanned PDFs are not supported, because there is no OCR.
 - A search checks up to 100 records per source and query and shows up to 100 eligible studies. The results page says so when that limit applies. Refine your keywords to go further.
 - Caches are in memory, so each server instance has its own.
-- Share previews show the same title and description on every page.
+- Public pages have individual share titles and descriptions; search queries are not included in server preview tags.
 - Browser tests run in Chromium only.
 
 ## Planned
@@ -170,3 +170,45 @@ See [CHANGELOG.md](CHANGELOG.md).
 ## License
 
 No license file is included yet. Add one (for example MIT or Apache-2.0) before you accept contributions or let others reuse the code.
+
+### Saved library
+
+Use `/app/library` to filter, sort, remove, export or import saved research. JSON imports merge by study id and reject invalid files or a merged library over 500 studies. Saved in this browser only. Export to keep a copy. Storage can be unavailable or cleared by the browser; backups are your responsibility.
+
+### Citation export
+
+Each study and the whole library support APA 7, MLA 9 and Chicago author-date copying, and BibTeX, RIS and UTF-8 CSV downloads. Missing fields are omitted. Known limits: source author lists can be truncated; name order and capitalization should be checked against the original paper and your style guide. Exports use only available metadata, with no invented volume, issue or page numbers.
+
+### Shareable searches
+
+Copy a search link from `/app/search` to share a typed query and its filters. Back and forward restore them. Known limits: uploaded documents and passages longer than 300 characters are not placed in links. Search results can change when the scholarly indexes change; links describe queries, not frozen result sets.
+
+### Source notices
+
+OpenAlex retractions and Crossref retraction/correction notices appear on cards and details. Retracted studies stay in normal search order unless you enable Hide retracted studies. AI summaries are skipped for them. Known limits: notices depend on what the sources report and their cache freshness; an absent notice is not a guarantee that a paper is current. Saved copies retain their last metadata until re-checked.
+
+### Related studies
+
+Use Related studies on a card to retrieve up to 10 OpenAlex related works and references. Records are fetched by id and verified, including after an instance restart. Known limits: Crossref-only records without an OpenAlex match may have no relations. References can be older than your search window, and upstream failures may leave a partial list with a notice.
+
+### Recent searches
+
+The Search page keeps the last 8 typed queries and filters in this browser. Select one to run it again or use Clear recent searches. Known limits: uploaded document text and typed passages over 300 characters are excluded; browser storage may be cleared or unavailable.
+
+### Report a problem and share previews
+
+The footer opens a draft email to `CONTACT_EMAIL` with the current page address. If contact email is unset, it links to the Contact page. Each public page receives its own title and description from `server/spa.ts`, including Open Graph and Twitter tags before JavaScript runs. Known limits: email requires a configured mail client; external preview services may cache old tags.
+
+### Adding shared rate limiting later
+
+Current limiters in `server/middleware/security.ts` use `express-rate-limit` memory stores. On Vercel, requests to different instances do not share a budget. No paid service is configured by this patch.
+
+When you choose to add Upstash Redis or a Vercel Marketplace KV/Redis store:
+
+1. Obtain approval for the provider and its costs, then provision a database near the function region. Keep its endpoint and credentials in server environment variables only.
+2. Add an `express-rate-limit` compatible store adapter using atomic increment and expiration operations. Supply a separate store/prefix for each general, search, AI and upload limiter; preserve the current window, limits and 429 JSON/Retry-After behavior.
+3. Keep client IP handling restricted to the trusted Vercel gateway. Use the library's IPv6-safe key generator. Do not key by query text or upload contents, and do not store them in Redis.
+4. Decide explicitly how store failures behave. For paid AI/upload work, return a temporary unavailable response when the shared budget cannot be checked; expose outages in server monitoring. Avoid silently falling back to independent memory budgets.
+5. Test simultaneous requests through two app instances, window expiry, IPv4 and IPv6 clients, proxy spoofing, provider timeouts and 429 responses. Set storage retention to the limit window and monitor request cost and latency before rollout.
+
+Shared rate limiting does not automatically share metadata caches or the study store. Id-based lookup recovery must continue to work without them.

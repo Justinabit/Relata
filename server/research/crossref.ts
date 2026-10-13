@@ -67,6 +67,11 @@ export function normalizeCrossrefWork(w: Raw, now = new Date()): Study | null {
   const abstract = cleanAbstract(w.abstract);
   const rawType = typeof w.type === 'string' ? w.type : null;
   const updatedBy: Raw[] = Array.isArray(w['updated-by']) ? w['updated-by'] : [];
+  const sourceNotices: NonNullable<Study['sourceNotices']> = updatedBy.flatMap((u) => {
+    const type = String(u?.type ?? '').toLowerCase();
+    const kind = type === 'retraction' ? 'retraction' : ['correction', 'erratum', 'corrigendum'].includes(type) ? 'correction' : null;
+    return kind ? [{ kind, source: 'crossref' as const, doi: normalizeDoi(u?.DOI ?? u?.doi) }] : [];
+  });
   const cites = Number.isInteger(w['is-referenced-by-count']) ? (w['is-referenced-by-count'] as number) : null;
   return {
     id: crossrefStudyId(doi),
@@ -94,7 +99,8 @@ export function normalizeCrossrefWork(w: Raw, now = new Date()): Study | null {
     keywords: [],
     type: mapType(rawType),
     rawType,
-    isRetracted: updatedBy.some((u) => ['retraction', 'withdrawal'].includes(String(u?.type ?? '').toLowerCase())),
+    isRetracted: sourceNotices.some((n) => n.kind === 'retraction'),
+    sourceNotices,
     // A record that comes from Crossref carries a DOI that Crossref itself registered.
     verification: { doi: 'verified', verifiedBy: ['crossref'], conflicts: [] },
     matchedQueries: 1,

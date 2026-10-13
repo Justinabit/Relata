@@ -56,14 +56,15 @@ def stress_records(route):
         study = data['studies'][0]
         study['title'] = '[Fixture] A longitudinal investigation of digital learning environments and student attention across institutions: '+('InterdisciplinaryResearch' * 4)
         study['isRetracted'] = True
+        study['sourceNotices'] = [{'kind':'retraction', 'source':'openalex', 'doi':None}]
         study['verification']['conflicts'] = [{'field':'publication year', 'openalex':'2024', 'crossref':'2025', 'displayed':'crossref'}]
     route.fulfill(response=response, json=data)
 
 
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp(CDP) if CDP else p.chromium.launch()
-    for theme in ['light', 'dark']:
-        for width in [390, 768, 1440]:
+    for theme in os.environ.get('THEMES', 'light,dark').split(','):
+        for width in map(int, os.environ.get('WIDTHS', '390,768,1440').split(',')):
             prefix = f'{theme}-{width}'
             ctx = browser.new_context(viewport={'width':width, 'height':960}, color_scheme=theme)
             ctx.add_init_script(SEEN)
@@ -85,7 +86,7 @@ with sync_playwright() as p:
             page.wait_for_function('document.querySelectorAll(".skels").length === 0')
             check(prefix+' results precede supporting content in the DOM', page.evaluate("!!(document.querySelector('.studies').compareDocumentPosition(document.querySelector('.dash__rail')) & Node.DOCUMENT_POSITION_FOLLOWING)"))
             check(prefix+' topic overview starts collapsed', not page.locator('.topic-overview').evaluate('(e) => e.open'))
-            check(prefix+' retraction and conflict stay visible', page.locator('article.study').first.get_by_text('Retracted', exact=True).is_visible() and page.locator('article.study').first.get_by_text('Metadata conflict detected', exact=True).is_visible())
+            check(prefix+' retraction and conflict stay visible', page.locator('article.study').first.get_by_text('This paper has been retracted', exact=True).is_visible() and page.locator('article.study').first.get_by_text('Metadata conflict detected', exact=True).is_visible())
             check(prefix+' missing abstracts have a clear fallback', page.get_by_text('A reliable summary could not be generated from the available source information.', exact=True).count()>0)
             inspect(page, prefix+'-results')
             page.locator('.topic-overview > summary').click()

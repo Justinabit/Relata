@@ -15,7 +15,8 @@ export const ROUTES = {
   home: '/',
   app: '/app',
   research: '/app/research',
-  saved: '/app/saved',
+  search: '/app/search',
+  saved: '/app/library',
   settings: '/app/settings',
   about: '/about',
   privacy: '/privacy',
@@ -30,6 +31,7 @@ export const ROUTES = {
 export const LEGACY_REDIRECTS: Readonly<Record<string, string>> = {
   '/research': ROUTES.research,
   '/saved': ROUTES.saved,
+  '/app/saved': ROUTES.saved,
   '/settings': ROUTES.settings,
 };
 

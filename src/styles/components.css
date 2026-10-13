@@ -201,3 +201,7 @@ ul.plain--tight { gap: 3px; }
   .field--sources legend { float: left; margin-right: 16px; line-height: 36px; }
   .field--sources .checks { min-height: 36px; }
 }
+
+.study__notice { color: var(--text); background: var(--surface); border: 2px solid currentColor; padding: 12px; margin: 12px 0; overflow-wrap: anywhere; }
+
+.field--retractions { grid-column: 1 / -1; }

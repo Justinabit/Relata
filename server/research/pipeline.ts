@@ -271,6 +271,10 @@ export async function runSearch(params: SearchParams, signal?: AbortSignal): Pro
       reject('Not marked open access by the source');
       continue;
     }
+    if (filters.hideRetracted && r.study.isRetracted) {
+      reject('Retraction reported by a source');
+      continue;
+    }
     eligible.push(r);
   }
 

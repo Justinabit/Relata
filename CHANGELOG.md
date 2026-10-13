@@ -96,3 +96,45 @@ How each item was verified:
 - Replaced the type-unsafe lazy-loading cast in `App.tsx` with a typed helper.
 - Tests: 18 → 33 (regression tests for each text, citation, cache and HTTP fix, plus a pipeline partial-failure test).
   Browser tests added under `tests/e2e/`.
+
+## Saved library
+
+- Added /app/library with text filtering, sorting, a 500 study limit, and validated JSON import and export. Old saved-page links redirect.
+- Browser storage failures are visible. Saved records contain metadata and dates saved; no account is required.
+
+## Citation export
+
+- Added BibTeX and RIS downloads for studies and the whole library, alongside CSV and copyable APA 7, MLA 9 and Chicago author-date citations.
+- Missing fields are omitted. BibTeX escapes special characters and assigns deterministic citation keys with collision suffixes.
+
+## Shareable search links
+
+- Added `/app/search` with query and filter URLs, restoration on load and history navigation, and a copy-link confirmation.
+- URL values use the API's shared Zod schemas. Invalid parameters are ignored independently.
+
+## Retraction and correction flags
+
+- Added source-named OpenAlex retraction and Crossref update notices, with an optional hide-retracted filter.
+- Retracted papers remain visible by default and never enter AI summaries. Cold summary requests rebuild verified metadata by id.
+
+## Related studies
+
+- Added related-study actions backed by OpenAlex related works and references, fetched by id and verified through the standard source lookup.
+- Results are limited to 10 with loading, empty and upstream-error states.
+
+## Recent searches
+
+- Added the last 8 typed queries and filters in browser storage, with replay and Clear controls.
+- Uploaded document text and long passages are excluded. Storage failures are visible.
+
+## Report a problem
+
+- Added a footer email draft to CONTACT_EMAIL with the page address, or a Contact-page link when no email is configured.
+
+## Public share previews
+
+- Server-rendered titles and descriptions now identify each public page in Open Graph and Twitter previews.
+
+## Shared rate limiting documentation
+
+- Documented a future Upstash or Vercel KV integration, atomic shared budgets, outage policy and multi-instance checks. No paid service was added.

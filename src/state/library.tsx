@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Study } from '../../shared/types';
-import { readJson, removeKey, writeJson } from '../lib/storage';
-import { sanitizeLibrary, type LibraryData } from '../lib/library';
+import { writeJson } from '../lib/storage';
+import { sanitizeLibrary, mergeLibrary, refreshSavedStudy, LIBRARY_LIMIT, type LibraryData } from '../lib/library';
 
 /**
  * FUTURE(auth): `LibraryStore` is the persistence boundary. Today it is backed by localStorage.
@@ -21,16 +21,21 @@ export interface LibraryStore {
   clear(): void;
 }
 export const localLibraryStore: LibraryStore = {
-  load: () => sanitizeLibrary(readJson<LibraryData>(KEY, EMPTY)),
+  load: () => {
+    // The provider catches read failures and displays a persistent warning.
+    try { return sanitizeLibrary(JSON.parse(localStorage.getItem(KEY) ?? '{}')); }
+    catch (error) { if (error instanceof SyntaxError) return EMPTY; throw error; }
+  },
   save: (d) => writeJson(KEY, d),
-  clear: () => removeKey(KEY),
+  clear: () => { try { localStorage.removeItem(KEY); } catch (error) { throw error; } },
 };
 
 interface Value {
   data: LibraryData;
   persistFailed: boolean;
   isStudySaved(id: string): boolean;
-  toggleStudy(study: Study): boolean;
+  toggleStudy(study: Study): boolean | null;
+  importLibrary(raw: unknown): void;
   updateStudyMetadata(id: string, study: Study): void;
   removeStudy(id: string): void;
   setStudyCollections(id: string, collectionIds: string[]): void;
@@ -48,8 +53,9 @@ const Ctx = createContext<Value | null>(null);
 const norm = (s: string) => s.trim().toLowerCase();
 
 export function LibraryProvider({ children, store = localLibraryStore }: { children: ReactNode; store?: LibraryStore }) {
-  const [data, setData] = useState<LibraryData>(() => store.load());
-  const [persistFailed, setPersistFailed] = useState(false);
+  const [loaded] = useState(() => { try { return { data: store.load(), failed: false }; } catch { return { data: EMPTY, failed: true }; } });
+  const [data, setData] = useState<LibraryData>(loaded.data);
+  const [persistFailed, setPersistFailed] = useState(loaded.failed);
   const ref = useRef(data);
   ref.current = data;
 
@@ -66,7 +72,10 @@ export function LibraryProvider({ children, store = localLibraryStore }: { child
   // Keep multiple tabs in sync.
   useEffect(() => {
     const on = (e: StorageEvent) => {
-      if (e.key === KEY) setData(store.load());
+      if (e.key === KEY || e.key === null) {
+        try { const next = store.load(); ref.current = next; setData(next); setPersistFailed(false); }
+        catch { setPersistFailed(true); }
+      }
     };
     window.addEventListener('storage', on);
     return () => window.removeEventListener('storage', on);
@@ -79,6 +88,7 @@ export function LibraryProvider({ children, store = localLibraryStore }: { child
     isStudySaved: (id) => data.studies.some((s) => s.studyId === id),
     toggleStudy: (study) => {
       const exists = ref.current.studies.some((s) => s.studyId === study.id);
+      if (!exists && ref.current.studies.length >= LIBRARY_LIMIT) return null;
       commit((d) =>
         exists
           ? { ...d, studies: d.studies.filter((s) => s.studyId !== study.id) }
@@ -86,8 +96,9 @@ export function LibraryProvider({ children, store = localLibraryStore }: { child
       );
       return !exists;
     },
+    importLibrary: (raw) => { const next = mergeLibrary(ref.current, raw); commit(() => next); },
     updateStudyMetadata: (id, study) =>
-      commit((d) => ({ ...d, studies: d.studies.map((s) => (s.studyId === id ? { ...s, metadata: { ...study, abstract: null } } : s)) })),
+      commit((d) => ({ ...d, studies: d.studies.map((s) => (s.studyId === id ? refreshSavedStudy(s, study) : s)) })),
     removeStudy: (id) => commit((d) => ({ ...d, studies: d.studies.filter((s) => s.studyId !== id) })),
     setStudyCollections: (id, collectionIds) => commit((d) => ({ ...d, studies: d.studies.map((s) => (s.studyId === id ? { ...s, collectionIds } : s)) })),
     isTopicSaved: (name) => data.topics.some((t) => norm(t.name) === norm(name)),
@@ -111,7 +122,7 @@ export function LibraryProvider({ children, store = localLibraryStore }: { child
     deleteCollection: (id) =>
       commit((d) => ({ ...d, collections: d.collections.filter((c) => c.id !== id), studies: d.studies.map((s) => ({ ...s, collectionIds: s.collectionIds.filter((x) => x !== id) })) })),
     clearAll: () => {
-      store.clear();
+      try { store.clear(); } catch { setPersistFailed(true); return; }
       ref.current = EMPTY;
       setData(EMPTY);
       setPersistFailed(false);

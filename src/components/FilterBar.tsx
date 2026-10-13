@@ -17,7 +17,7 @@ export function FilterBar({ filters, onChange, defaultYears = 10 }: { filters: S
   const id = useId();
   const caps = capabilitiesFor(filters.sources);
   const active =
-    (filters.yearsBack !== defaultYears ? 1 : 0) + (filters.type !== 'any' ? 1 : 0) + (filters.openAccessOnly ? 1 : 0) + (filters.sort !== 'relevance' ? 1 : 0) + (filters.sources.length !== 1 || filters.sources[0] !== 'openalex' ? 1 : 0);
+    (filters.hideRetracted ? 1 : 0) + (filters.yearsBack !== defaultYears ? 1 : 0) + (filters.type !== 'any' ? 1 : 0) + (filters.openAccessOnly ? 1 : 0) + (filters.sort !== 'relevance' ? 1 : 0) + (filters.sources.length !== 1 || filters.sources[0] !== 'openalex' ? 1 : 0);
 
   const toggleSource = (s: SourceId, on: boolean) => {
     const next = on ? [...new Set([...filters.sources, s])] : filters.sources.filter((x) => x !== s);
@@ -75,6 +75,7 @@ export function FilterBar({ filters, onChange, defaultYears = 10 }: { filters: S
             ))}
           </div>
         </fieldset>
+        <label className="check field--retractions"><input type="checkbox" checked={filters.hideRetracted ?? false} onChange={(e) => onChange({ hideRetracted: e.target.checked })} /><span>Hide retracted studies</span></label>
       </div>
       {filters.sort === 'cited' && (
         <p className="filterbar__note">Citation count shows how often a work has been cited. It is not a measure of research quality.</p>

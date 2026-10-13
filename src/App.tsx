@@ -34,6 +34,7 @@ interface RouteDef {
 const ROUTE_TABLE: Record<string, RouteDef> = {
   [ROUTES.home]: { component: LandingPage },
   [ROUTES.app]: { component: SearchPage },
+  [ROUTES.search]: { component: ResearchPage },
   [ROUTES.research]: { component: ResearchPage },
   [ROUTES.saved]: { component: SavedPage },
   [ROUTES.settings]: { component: SettingsPage },

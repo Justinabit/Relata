@@ -1,20 +1,19 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { aiConfigured, config } from '../config.js';
-import { AppError, UpstreamError } from '../lib/errors.js';
+import { AppError } from '../lib/errors.js';
 import { cleanText } from '../lib/text.js';
 import { analyzeInput } from '../ai/analyze.js';
 import { summarizeStudies } from '../ai/summarize.js';
 import { extractDocument } from '../documents/extract.js';
 import { aiLimiter, requestSignal, searchLimiter, uploadLimiter } from '../middleware/security.js';
 import { runSearch } from '../research/pipeline.js';
-import { countWorks, getOpenAlexTopic, getOpenAlexWork, lookupOpenAlexByDois } from '../research/openalex.js';
-import { getCrossrefWork, lookupCrossrefByDois } from '../research/crossref.js';
-import { doiFromCrossrefStudyId, openalexShortId } from '../research/ids.js';
-import { reconcile } from '../research/reconcile.js';
-import { rememberStudies } from '../research/store.js';
+import { countWorks, getOpenAlexTopic } from '../research/openalex.js';
+import { openalexShortId } from '../research/ids.js';
+import { relatedStudies } from '../research/related.js';
+import { lookupStudy } from '../research/lookup.js';
 import { computeWindow } from '../../shared/window.js';
-import type { HealthResponse, SearchFilters, Study, TopicCount } from '../../shared/types.js';
+import type { HealthResponse, SearchFilters, TopicCount } from '../../shared/types.js';
 import { analyzeBody, searchBody, summarizeBody, topicCountsBody } from './schemas.js';
 
 export const api = Router();
@@ -111,41 +110,13 @@ api.get('/topics/:id', searchLimiter, async (req, res) => {
   res.json({ topic, source: 'openalex' });
 });
 
+api.get('/studies/:id/related', searchLimiter, async (req, res) => {
+  res.json(await relatedStudies(String(req.params.id), requestSignal(req, res)));
+});
+
 // GET /api/studies/:id — fresh, re-verified record ("W…" OpenAlex id or "cr-…" Crossref id).
 api.get('/studies/:id', searchLimiter, async (req, res) => {
-  const signal = requestSignal(req, res);
-  const raw = String(req.params.id);
-  let study: Study | null = null;
-  try {
-    const oaId = openalexShortId(raw);
-    if (oaId?.startsWith('W')) {
-      const oa = await getOpenAlexWork(oaId, signal);
-      if (oa?.doi) {
-        const { records } = await lookupCrossrefByDois([oa.doi], signal);
-        const cr = records.get(oa.doi);
-        study = cr ? reconcile(oa, cr) : { ...oa, verification: { ...oa.verification, doi: records.has(oa.doi) ? 'not-in-crossref' : 'unchecked' } };
-      } else study = oa;
-    } else {
-      const doi = doiFromCrossrefStudyId(raw);
-      if (!doi) throw new AppError(400, 'INVALID_ID', 'Unrecognised study id.');
-      const cr = await getCrossrefWork(doi, signal);
-      if (cr) {
-        let merged: Study = cr;
-        try {
-          const oa = (await lookupOpenAlexByDois([doi], signal)).get(doi);
-          if (oa) merged = { ...reconcile(oa, cr), source: 'crossref' };
-        } catch {
-          /* OpenAlex enrichment is optional */
-        }
-        study = merged;
-      }
-    }
-  } catch (err) {
-    if (err instanceof UpstreamError) throw new AppError(503, 'RESEARCH_UNAVAILABLE', 'Research services are temporarily unavailable. Please try again later.');
-    throw err;
-  }
-  if (!study) throw new AppError(404, 'NOT_FOUND', 'No verified study was found for this result.');
-  rememberStudies([study]);
+  const study = await lookupStudy(String(req.params.id), requestSignal(req, res));
   res.json({ study, retrievedLive: true });
 });
 

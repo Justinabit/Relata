@@ -1,7 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { AIInfo, AnalyzeResponse, SearchFilters, SearchResponse, Study, StudyInsight } from '../../shared/types';
 import { reconcileFilters } from '../../shared/capabilities';
+import { searchLink } from '../../shared/search';
+import { useRouter } from '../lib/router';
 import { searchConcepts } from '../../shared/search';
+import { loadRecentSearches, rememberSearch, saveRecentSearches, RECENT_KEY, type RecentSearch } from '../lib/recent-searches';
 import { api, ApiError, isAbort } from '../lib/api';
 import { useSettings } from './settings';
 
@@ -30,13 +33,16 @@ export interface Session {
 
 interface Value {
   session: Session;
-  start: (text: string, opts?: { origin?: 'text' | 'document'; docName?: string | null; useAI?: boolean }) => void;
+  start: (text: string, opts?: { origin?: 'text' | 'document'; docName?: string | null; useAI?: boolean; filters?: SearchFilters; fromUrl?: boolean }) => void;
   setFilters: (patch: Partial<SearchFilters>) => void;
   loadMore: () => void;
   retry: () => void;
   reset: () => void;
   /** True when AI-generated per-study notes are expected for this session. */
   insightsExpected: boolean;
+  recentSearches: RecentSearch[];
+  recentFailed: boolean;
+  clearRecentSearches: () => void;
 }
 
 const Ctx = createContext<Value | null>(null);
@@ -67,10 +73,27 @@ const errMessage = (e: unknown) =>
 
 export function ResearchProvider({ children }: { children: ReactNode }) {
   const { settings } = useSettings();
+  const { navigate } = useRouter();
   const defaultFilters = useMemo<SearchFilters>(
     () => ({ yearsBack: settings.yearsBack, sources: ['openalex'], openAccessOnly: false, type: 'any', sort: 'relevance' }),
     [settings.yearsBack],
   );
+  const [recent, setRecent] = useState(loadRecentSearches);
+  const recentRef = useRef(recent.searches);
+  const recordRecent = useCallback((query: string, filters: SearchFilters, origin: 'text' | 'document') => {
+    const searches = rememberSearch(recentRef.current, query, filters, origin);
+    if (searches === recentRef.current) return;
+    recentRef.current = searches;
+    setRecent({ searches, failed: !saveRecentSearches(searches) });
+  }, []);
+  const clearRecentSearches = useCallback(() => {
+    recentRef.current = [];
+    setRecent({ searches: [], failed: !saveRecentSearches([]) });
+  }, []);
+  useEffect(() => {
+    const sync = (event: StorageEvent) => { if (event.key === RECENT_KEY || event.key === null) { const loaded = loadRecentSearches(); recentRef.current = loaded.searches; setRecent(loaded); } };
+    window.addEventListener('storage', sync); return () => window.removeEventListener('storage', sync);
+  }, []);
   const [session, setSession] = useState<Session>(() => initial(defaultFilters));
   const ref = useRef(session);
   ref.current = session;
@@ -87,7 +110,7 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
   const loadInsights = useCallback(async (studies: Study[], runId: number, signal: AbortSignal) => {
     const s0 = ref.current;
     if (!s0.useAI || s0.analysis?.ai.status !== 'ok') return;
-    const todo = studies.filter((st) => !ref.current.insights[st.id]);
+    const todo = studies.filter((st) => !st.isRetracted && !ref.current.insights[st.id]);
     if (!todo.length) return;
     patch((s) => ({ insights: { ...s.insights, ...Object.fromEntries(todo.map((t) => [t.id, 'loading' as const])) } }));
     const topic = topicTextFor(s0);
@@ -154,13 +177,19 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
     ctrl.current = c;
     const runId = ++run.current;
     const useAI = opts?.useAI ?? true;
-    const filters = reconcileFilters({ ...ref.current.filters, yearsBack: settingsRef.current.yearsBack });
+    const filters = reconcileFilters(opts?.filters ?? { ...ref.current.filters, yearsBack: settingsRef.current.yearsBack });
     const next = { ...initial(filters), phase: 'analyzing' as Phase, input, origin: opts?.origin ?? 'text', docName: opts?.docName ?? null, useAI };
     ref.current = next;
     setSession(next);
+    recordRecent(input, filters, next.origin);
+    if (!opts?.fromUrl) navigate(next.origin === 'text' ? searchLink(input, filters) : '/app/search');
     (async () => {
       try {
-        const analysis = await api.analyze(
+        // Search accepts one-character queries; topic analysis requires at least two.
+        const analysis: AnalyzeResponse = input.length === 1 ? {
+          inputKind: 'keyword', plan: { primaryQuery: input, expandedQueries: [], extractedKeywords: [input] },
+          analysis: null, ai: { status: 'disabled' }, cache: { hit: false },
+        } : await api.analyze(
           { text: input.slice(0, 12000), origin: next.origin, useAI, provider: settingsRef.current.aiProvider },
           c.signal,
         );
@@ -176,7 +205,7 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
         patch({ phase: 'error', error: errMessage(e), refreshing: false });
       }
     })();
-  }, [patch, doSearch, loadTopicCounts]);
+  }, [patch, doSearch, loadTopicCounts, navigate, recordRecent]);
 
   const refresh = useCallback((filters: SearchFilters, yearsChanged: boolean) => {
     const a = ref.current.analysis;
@@ -201,8 +230,10 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
     const filters = reconcileFilters({ ...prev, ...p });
     ref.current = { ...ref.current, filters };
     patch({ filters });
+    recordRecent(ref.current.input, filters, ref.current.origin);
+    if (ref.current.origin === 'text' && ref.current.input.length <= 300) navigate(searchLink(ref.current.input, filters));
     if (ref.current.analysis) refresh(filters, filters.yearsBack !== prev.yearsBack);
-  }, [patch, refresh]);
+  }, [patch, refresh, navigate, recordRecent]);
 
   const loadMore = useCallback(() => {
     const s = ref.current;
@@ -248,7 +279,7 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
   useEffect(() => () => ctrl.current?.abort(), []);
 
   const insightsExpected = session.useAI && session.analysis?.ai.status === 'ok';
-  const value = useMemo(() => ({ session, start, setFilters, loadMore, retry, reset, insightsExpected: !!insightsExpected }), [session, start, setFilters, loadMore, retry, reset, insightsExpected]);
+  const value = useMemo(() => ({ session, start, setFilters, loadMore, retry, reset, insightsExpected: !!insightsExpected, recentSearches: recent.searches, recentFailed: recent.failed, clearRecentSearches }), [session, start, setFilters, loadMore, retry, reset, insightsExpected, recent, clearRecentSearches]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
