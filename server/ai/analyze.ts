@@ -1,7 +1,9 @@
 import { config } from '../config.js';
+import { AppError } from '../lib/errors.js';
 import { TtlCache } from '../lib/cache.js';
 import { cleanText, extractKeywords, joinUniqueWords, sha256, truncate } from '../lib/text.js';
 import type { AIInfo, AIProviderPreference, AnalyzeResponse, InputKind, TopicAnalysis } from '../../shared/types.js';
+import { MAX_CONCEPT_CHARS, MAX_EXPANDED_CHARS, MAX_QUERY_CHARS } from '../../shared/search.js';
 import { runStructured, unavailableInfo } from './manager.js';
 import { ANALYZE_SYSTEM, buildAnalyzeUser } from './prompts.js';
 import { TopicAnalysisSchema } from './schemas.js';
@@ -20,22 +22,34 @@ function tidyQuery(s: string): string {
   return s.replace(/[?!.]+$/g, '').replace(/\s+/g, ' ').trim().slice(0, 200);
 }
 
-/** Search plan that needs no AI: used directly when AI is off/unavailable and as a base otherwise. */
+/** Shortens a search string at a word boundary, without an ellipsis. Text with no spaces (Chinese, Japanese, Thai) is cut hard. */
+function clip(s: string, max: number): string {
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  return (cut.replace(/\s+\S*$/, '') || cut).trim();
+}
+
+/**
+ * Search plan that needs no AI: used directly when AI is off/unavailable and as a base otherwise.
+ * Every string fits the /api/search limits, and the primary query is never empty, so a plan can always be searched.
+ */
 export function deterministicPlan(text: string, kind: InputKind) {
   const head = text.slice(0, 8000);
-  const extractedKeywords = extractKeywords(head, 8);
+  const extractedKeywords = extractKeywords(head, 8).map((k) => clip(k, MAX_CONCEPT_CHARS));
+  // Text with no usable keywords (only numbers or very short words) still gets searched with its own opening words.
+  const fallback = tidyQuery(text).split(' ').slice(0, 10).join(' ');
   if (kind === 'keyword' || kind === 'question') {
     const q = tidyQuery(text);
     const short = q.split(' ').length <= 12;
     return {
-      primaryQuery: short ? q : joinUniqueWords(extractedKeywords, 6),
-      expandedQueries: short ? [] : [tidyQuery(text).split(' ').slice(0, 10).join(' ')],
+      primaryQuery: short ? q : clip(joinUniqueWords(extractedKeywords, 6), MAX_QUERY_CHARS) || fallback,
+      expandedQueries: short ? [] : [fallback],
       extractedKeywords,
     };
   }
   return {
-    primaryQuery: joinUniqueWords(extractedKeywords, 7),
-    expandedQueries: [joinUniqueWords(extractedKeywords.slice(0, 3), 4)].filter(Boolean),
+    primaryQuery: clip(joinUniqueWords(extractedKeywords, 7), MAX_QUERY_CHARS) || fallback,
+    expandedQueries: [clip(joinUniqueWords(extractedKeywords.slice(0, 3), 4), MAX_EXPANDED_CHARS)].filter(Boolean),
     extractedKeywords,
   };
 }
@@ -50,6 +64,8 @@ export async function analyzeInput(opts: {
   const text = cleanText(opts.text);
   const kind = classifyInput(text, opts.origin);
   const plan = deterministicPlan(text, kind);
+  // Input such as "?!" passes the length check but leaves nothing to search for.
+  if (!plan.primaryQuery) throw new AppError(400, 'EMPTY_INPUT', 'Enter a topic, question or passage with at least one word to search for.');
 
   if (!opts.useAI) {
     return { inputKind: kind, plan, analysis: null, ai: { status: 'disabled', message: 'AI analysis was turned off for this search.' }, cache: { hit: false } };

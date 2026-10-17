@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { Compass, Download, FolderPlus, RefreshCw, Trash2, X } from 'lucide-react';
+import { Compass, Download, FolderPlus, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import type { Study } from '../../shared/types';
 import { api } from '../lib/api';
 import { excerpt, timeAgo } from '../lib/format';
@@ -125,6 +125,7 @@ export default function SavedPage() {
                     <li key={s.studyId}>
                       <StudyCard
                         study={s.metadata as Study} index={i} compact onCite={(x) => setCite({ title: 'Cite this study', studies: [x] })}
+                        note={<>Saved {timeAgo(s.savedAt)}</>}
                         extra={
                           <>
                             <details className="menu">
@@ -143,7 +144,6 @@ export default function SavedPage() {
                           </>
                         }
                       />
-                      <p className="small muted saved__when">Saved {timeAgo(s.savedAt)}</p>
                     </li>
                   ))}
                 </ol>
@@ -162,7 +162,7 @@ export default function SavedPage() {
                       <div><strong>{t.name}</strong><span className="small muted"> · saved {timeAgo(t.savedAt)}</span></div>
                       <div className="row">
                         <button type="button" className="btn btn--sm" onClick={() => explore(t.name)}><Compass size={15} aria-hidden="true" /> Explore</button>
-                        <button type="button" className="btn btn--sm btn--ghost" onClick={() => lib.toggleTopic(t.name)} aria-label={`Remove saved topic ${t.name}`}><X size={15} aria-hidden="true" /></button>
+                        <button type="button" className="btn btn--sm btn--ghost btn--icon" onClick={() => { lib.toggleTopic(t.name); toast('Topic removed'); }} aria-label={`Remove saved topic ${t.name}`}><X size={15} aria-hidden="true" /></button>
                       </div>
                     </li>
                   ))}
@@ -181,8 +181,8 @@ export default function SavedPage() {
                     <li key={q.text} className="list__item">
                       <div><strong>{excerpt(q.text, 140)}</strong><span className="small muted"> · saved {timeAgo(q.savedAt)}</span></div>
                       <div className="row">
-                        <button type="button" className="btn btn--sm" onClick={() => explore(q.text)}>Search again</button>
-                        <button type="button" className="btn btn--sm btn--ghost" onClick={() => lib.toggleQuery(q.text)} aria-label={`Remove saved search ${excerpt(q.text, 40)}`}><X size={15} aria-hidden="true" /></button>
+                        <button type="button" className="btn btn--sm" onClick={() => explore(q.text)}><Search size={15} aria-hidden="true" /> Search again</button>
+                        <button type="button" className="btn btn--sm btn--ghost btn--icon" onClick={() => { lib.toggleQuery(q.text); toast('Saved search removed'); }} aria-label={`Remove saved search ${excerpt(q.text, 40)}`}><X size={15} aria-hidden="true" /></button>
                       </div>
                     </li>
                   ))}

@@ -2,7 +2,10 @@ import { type ReactNode } from 'react';
 import { Bookmark, BookmarkCheck, ChevronDown, Compass, Info } from 'lucide-react';
 import type { AIInfo, AnalyzeResponse, GapAnalysis, Aggregates, SearchResponse } from '../../shared/types';
 import { SOURCE_CAPABILITIES } from '../../shared/capabilities';
+import { PROVIDER_LABEL } from '../lib/ai';
 import { nf, plural, sourceLabel, timeAgo, excerpt } from '../lib/format';
+import { Link } from '../lib/router';
+import { ROUTES } from '../lib/routes';
 import type { Session } from '../state/research';
 import { useHealth } from '../state/health';
 import { useLibrary } from '../state/library';
@@ -12,7 +15,7 @@ import { AITag, Badge, Callout, Section, Skeleton, VerifiedTag } from './ui';
 export function TrustPanel({ defaultOpen = false }: { defaultOpen?: boolean }) {
   return (
     <details className="trust" open={defaultOpen}>
-      <summary><Info size={16} aria-hidden="true" /> <span>How Research Results Work</span><ChevronDown size={16} aria-hidden="true" className="trust__chev" /></summary>
+      <summary><Info size={16} aria-hidden="true" /> <span>How research results work</span><ChevronDown size={16} aria-hidden="true" className="trust__chev" /></summary>
       <p>
         We use scholarly metadata sources to discover research. AI assists with topic analysis and summaries, but it does not create or invent research papers.
         Titles, authors, dates, DOIs and links come from OpenAlex and Crossref records. These are relevant studies found through the available sources and search strategy, not a complete list of everything written on your topic.
@@ -24,6 +27,14 @@ export function TrustPanel({ defaultOpen = false }: { defaultOpen?: boolean }) {
 export function AIStatusCallout({ ai, onlyIfProblem = true }: { ai: AIInfo; onlyIfProblem?: boolean }) {
   if (ai.status === 'ok' && onlyIfProblem) return null;
   if (ai.status === 'disabled') return null;
+  // A provider chosen in Settings that the server lacks: the fix is in Settings, not on the server.
+  if (ai.status === 'not_configured' && ai.provider) {
+    return (
+      <Callout tone="info" title={`${PROVIDER_LABEL[ai.provider]} is not set up on this server`} action={<Link to={ROUTES.settings} className="btn btn--sm">Open settings</Link>}>
+        It is the AI provider selected in Settings. Choose Automatic or another provider there to get topic definitions and study summaries. Every result below is complete without AI.
+      </Callout>
+    );
+  }
   return (
     <Callout tone="info" title={ai.status === 'not_configured' ? 'AI analysis is not set up on this server' : 'AI analysis is temporarily unavailable.'}>
       {ai.status === 'not_configured'
@@ -57,9 +68,11 @@ export function OverviewPanel({ session, onExplore }: { session: Session; onExpl
         <p className="muted small mt14">
           {health && !health.ai.anyConfigured
             ? 'AI analysis is not set up on this server, so no definition or related-topic suggestions are shown. Search results are unaffected.'
-            : session.analysis.ai.status === 'disabled'
-              ? 'AI analysis was turned off for this search, so no definition or related-topic suggestions are shown.'
-              : 'Definitions and related-topic suggestions are unavailable without AI analysis right now. Search results are unaffected.'}
+            : session.analysis.ai.status === 'not_configured' && session.analysis.ai.provider
+              ? `The AI provider selected in Settings (${PROVIDER_LABEL[session.analysis.ai.provider]}) is not set up on this server, so no definition or related-topic suggestions are shown. Search results are unaffected.`
+              : session.analysis.ai.status === 'disabled'
+                ? 'AI analysis was turned off for this search, so no definition or related-topic suggestions are shown.'
+                : 'Definitions and related-topic suggestions are unavailable without AI analysis right now. Search results are unaffected.'}
         </p>
       </Section>
     );
@@ -287,7 +300,7 @@ export function MethodPanel({ session }: { session: Session }) {
           <Row k="Data freshness">
             <ul className="plain plain--tight">
               <li>Scholarly metadata: <strong>{r.cache.metadata === 'cached' ? `cached (retrieved ${r.cache.cachedAt ? timeAgo(r.cache.cachedAt) : 'earlier'})` : `live (retrieved ${timeAgo(r.generatedAt)})`}</strong></li>
-              <li>AI topic analysis: <strong>{a.ai.status === 'ok' ? `${a.ai.provider}${a.ai.fallbackUsed ? ' (fallback provider)' : ''}, ${a.cache.hit ? 'cached' : 'live'}` : a.ai.status === 'disabled' ? 'off' : 'unavailable'}</strong></li>
+              <li>AI topic analysis: <strong>{a.ai.status === 'ok' ? `${a.ai.provider ? PROVIDER_LABEL[a.ai.provider] : 'AI'}${a.ai.fallbackUsed ? ' (fallback provider)' : ''}, ${a.cache.hit ? 'cached' : 'live'}` : a.ai.status === 'disabled' ? 'off' : a.ai.status === 'not_configured' ? 'not set up' : 'unavailable'}</strong></li>
               {insightVals.length > 0 && <li>AI study notes: {insightVals.length} generated{cachedInsights ? `, ${cachedInsights} from cache` : ''}</li>}
             </ul>
           </Row>

@@ -20,6 +20,8 @@ export class AIUnavailableError extends Error {
     public reason: 'not_configured' | 'failed',
     message: string,
     public attempts: { provider: AIProviderName; error: string }[] = [],
+    /** For `not_configured`: the provider the person chose explicitly, when it is the one missing. */
+    public provider?: AIProviderName,
   ) {
     super(message);
   }

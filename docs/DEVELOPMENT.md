@@ -15,7 +15,7 @@ npm install
 cp .env.example .env     # optional: add keys (server-side only)
 npm run dev              # API :8787 + Vite :5173
 # production
-npm run build && npm start   # serves API + built app on :8787
+npm run build && npm start   # serves API + built app on :8787 (server/start.ts sets production mode, so this also works on Windows)
 npm test                     # unit + pipeline tests (stubbed upstreams, no network needed)
 ```
 
@@ -27,7 +27,7 @@ Environment (see `.env.example`): `OPENALEX_API_KEY` (free, strongly recommended
 
 ```bash
 npm run build
-PORT=8790 npx tsx tests/harness/mock-upstreams.ts &   # serves the built app with labelled [Fixture] data
+PORT=8790 npx tsx tests/harness/mock-upstreams.ts &   # serves the built app with labelled [Fixture] data (rate limits raised for the suites)
 python3 tests/e2e/browser.py                          # storage corruption, blocked storage, CSV, keyboard tabs
 python3 tests/e2e/stuck-insights.py                   # AI summaries recover after a filter change
 python3 tests/e2e/editorial.py                        # responsive layout and text contrast checks (BROWSER_CDP_URL attaches to an existing browser)
@@ -58,7 +58,7 @@ Old addresses (`/research`, `/saved`, `/settings`) and trailing-slash addresses 
 
 Set `PUBLIC_URL` (for example `https://relata.example`) in the environment. With it, the server adds a canonical link and absolute share-image tags to every page and serves `/sitemap.xml`; `/robots.txt` then names the sitemap. Without it the site still works, but there is no sitemap and no canonical or share-image tags, because those need an absolute address. `robots.txt` always hides `/app` and `/api/`. The share image is `public/og-image.png` (1200 x 630); replace it if the headline or logo changes. Share previews show the same title and description on every page.
 
-Design rules: every button-style control uses `--r-btn` (5px) from `src/styles/tokens.css`. Change that one value to restyle all buttons. No gradients, pill shapes, emoji icons, em or en dashes in visible text, or animations tied to scrolling or the cursor.
+Design rules: every button-style control uses `--r-btn` (5px) from `src/styles/tokens.css`. Change that one value to restyle all buttons. All colours are tokens in the same file, tuned separately for dark mode; each text colour must pass WCAG AA on its surface (the editorial e2e suite checks every page in both themes). No gradients, pill shapes, emoji icons, em or en dashes in visible text, or animations tied to scrolling or the cursor.
 
 ## First visit
 

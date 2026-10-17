@@ -17,6 +17,8 @@ interface Props {
   /** Saved view: no AI blocks, metadata only. */
   compact?: boolean;
   extra?: React.ReactNode;
+  /** Appended to the year and venue line, for example when a study was saved. */
+  note?: React.ReactNode;
 }
 
 function DoiBadge({ s }: { s: Study }) {
@@ -32,7 +34,7 @@ function DoiBadge({ s }: { s: Study }) {
   }
 }
 
-export function StudyCard({ study: s, index = 0, insight, insightsExpected, onCite, compact, extra }: Props) {
+export function StudyCard({ study: s, index = 0, insight, insightsExpected, onCite, compact, extra, note }: Props) {
   const [open, setOpen] = useState(false);
   const detailsId = useId();
   const titleId = useId();
@@ -58,8 +60,13 @@ export function StudyCard({ study: s, index = 0, insight, insightsExpected, onCi
         <p className="study__authors">{authorsLine(s)}</p>
         <p className="study__meta">
           <span>{s.publicationYear}</span>
-          <span aria-hidden="true">·</span>
           <span className="study__venue">{s.journal ?? '[Source unavailable]'}</span>
+          {s.citationCount !== null && (
+            <span title={`Citation count from ${s.citationSource ? sourceLabel(s.citationSource) : 'the source'}. Not a measure of quality.`}>
+              Cited by {nf.format(s.citationCount)}
+            </span>
+          )}
+          {note && <span>{note}</span>}
         </p>
         <div className="badges" aria-label="Source indicators">
           <DoiBadge s={s} />

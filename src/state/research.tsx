@@ -245,6 +245,11 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
     setSession(initial(reconcileFilters({ ...defaultFilters })));
   }, [defaultFilters]);
 
+  // The default window is a setting. Until a search has run, the session (and the sidebar that shows it) follows it.
+  useEffect(() => {
+    setSession((s) => (s.analysis || s.filters.yearsBack === settings.yearsBack ? s : { ...s, filters: { ...s.filters, yearsBack: settings.yearsBack } }));
+  }, [settings.yearsBack]);
+
   useEffect(() => () => ctrl.current?.abort(), []);
 
   const insightsExpected = session.useAI && session.analysis?.ai.status === 'ok';

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bookmark, BookmarkCheck, ChevronDown, Download, FilterX, Pencil, RefreshCw } from 'lucide-react';
+import { Bookmark, BookmarkCheck, ChevronDown, Download, FilterX, Info, Pencil, RefreshCw } from 'lucide-react';
 import type { Study } from '../../shared/types';
 import { nf, excerpt } from '../lib/format';
 import { Link, useDocumentTitle, useRouter } from '../lib/router';
@@ -51,6 +51,9 @@ export default function ResearchPage() {
   const directions = s.analysis?.analysis?.researchDirections ?? [];
   const showAIProblem = s.useAI && s.analysis && s.analysis.ai.status !== 'ok' && s.analysis.ai.status !== 'disabled';
   const winLabel = r?.window.label;
+  // Warnings change how far the results can be trusted, so they stand out. Information notes sit quietly under the list header.
+  const warnings = r?.notices.filter((n) => n.level === 'warning') ?? [];
+  const infos = r?.notices.filter((n) => n.level !== 'warning') ?? [];
   const resetFilters = () => setFilters({ yearsBack: settings.yearsBack, openAccessOnly: false, type: 'any', sort: 'relevance', sources: ['openalex'] });
   const widen = () => setFilters({ yearsBack: s.filters.yearsBack < 10 ? 10 : s.filters.yearsBack === 10 ? 15 : 25 });
   const canWiden = s.filters.yearsBack < 25;
@@ -81,17 +84,26 @@ export default function ResearchPage() {
       </p>
 
       {s.analysis ? <FilterBar filters={s.filters} onChange={setFilters} defaultYears={settings.yearsBack} /> : s.phase === 'analyzing' ? <FilterSkeleton /> : null}
-      {showAIProblem && s.analysis && <AIStatusCallout ai={s.analysis.ai} />}
-      {s.insightsNote && !showAIProblem && <AIStatusCallout ai={s.insightsNote} />}
-      {r?.notices.map((n) => <Callout key={n.code} tone={n.level === 'warning' ? 'warn' : 'info'}>{n.message}</Callout>)}
+      {(showAIProblem || s.insightsNote || warnings.length > 0) && (
+        <div className="notices">
+          {showAIProblem && s.analysis && <AIStatusCallout ai={s.analysis.ai} />}
+          {s.insightsNote && !showAIProblem && <AIStatusCallout ai={s.insightsNote} />}
+          {warnings.map((n) => <Callout key={n.code} tone="warn">{n.message}</Callout>)}
+        </div>
+      )}
 
       <div className="dash">
         <div className="dash__main">
           <Section
             className={`studies ${s.refreshing ? 'studies--busy' : ''}`}
             title="Studies"
-            hint={r ? `${nf.format(s.studies.length)} of ${nf.format(r.counts.eligible)} eligible studies from this search.` : 'Searching verified scholarly sources…'}
+            hint={r ? `${nf.format(s.studies.length)} of ${nf.format(r.counts.eligible)} eligible studies from this search.` : s.phase === 'error' ? 'No studies could be loaded for this search.' : 'Searching verified scholarly sources…'}
           >
+            {infos.length > 0 && (
+              <div className="notices mb">
+                {infos.map((n) => <p key={n.code} className="notice"><Info size={15} aria-hidden="true" />{n.message}</p>)}
+              </div>
+            )}
             {s.phase === 'error' && (
               <Callout
                 tone="danger" live="assertive"

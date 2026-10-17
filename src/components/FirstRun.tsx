@@ -136,6 +136,7 @@ function OnboardingPopup() {
         </div>
       }
     >
+      <div className="fr-progress" aria-hidden="true">{STEPS.map((s, n) => <span key={s.title} data-done={n <= i} />)}</div>
       <p className="fr-step" aria-live="polite">Step {i + 1} of {STEPS.length}</p>
       <h3 className="fr-step__title">{step.title}</h3>
       <p className="fr-lead">{step.text}</p>

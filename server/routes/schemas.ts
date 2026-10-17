@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { config } from '../config.js';
-import { MAX_SEARCH_CONCEPTS } from '../../shared/search.js';
+import { MAX_CONCEPT_CHARS, MAX_EXPANDED_CHARS, MAX_QUERY_CHARS, MAX_SEARCH_CONCEPTS } from '../../shared/search.js';
 
 export const providerPref = z.enum(['auto', 'gemini', 'openai']).default('auto');
 
@@ -14,9 +14,9 @@ export const analyzeBody = z.object({
 const queryString = (max: number) => z.string().trim().min(1).max(max);
 
 export const searchBody = z.object({
-  query: queryString(300),
-  expandedQueries: z.array(queryString(200)).max(2).default([]),
-  concepts: z.array(queryString(100)).max(MAX_SEARCH_CONCEPTS).default([]),
+  query: queryString(MAX_QUERY_CHARS),
+  expandedQueries: z.array(queryString(MAX_EXPANDED_CHARS)).max(2).default([]),
+  concepts: z.array(queryString(MAX_CONCEPT_CHARS)).max(MAX_SEARCH_CONCEPTS).default([]),
   filters: z
     .object({
       yearsBack: z.union([z.literal(1), z.literal(3), z.literal(5), z.literal(10), z.literal(15), z.literal(25)]).default(10),

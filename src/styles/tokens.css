@@ -1,48 +1,53 @@
-/* Editorial palette and shared rhythm. Dark mode is tuned independently. */
+/*
+ * Design tokens. Warm paper background, white working surfaces, one ink-blue accent.
+ * Depth comes from hairline borders and a single soft shadow, never from paired "soft UI" shadows.
+ * Every text colour is checked against the surface it sits on (WCAG AA, see tests/e2e/editorial.py).
+ */
 :root {
   --font-ui: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-serif: 'Source Serif 4 Variable', 'Iowan Old Style', Georgia, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  --bg: #f0efed;
-  --surface: #f0efed;
-  --surface-hi: #faf9f7;
-  --inset: #e9e8e6;
-  --text: #262829;
-  --text-2: #474b50;
-  --text-3: #60646a;
-  --border: #d3d3d2;
-  --border-soft: #dbdbda;
-  --rule: #d3d3d2;
-  --control-border: #80848a;
+  --bg: #f7f6f2;
+  --surface: #ffffff;
+  --surface-hi: #faf9f6;
+  --inset: #f2f0eb;
+  --text: #1b1d20;
+  --text-2: #43474d;
+  --text-3: #5f636a;
+  --border: #e2dfd8;
+  --border-soft: #ebe8e2;
+  --rule: #e2dfd8;
+  /* Form controls keep a 3:1 boundary against white. */
+  --control-border: #8a8e95;
+  --btn-border: #cfccc5;
 
-  --accent: #355d7a;
-  --accent-hover: #27465e;
+  --accent: #1f4f82;
+  --accent-hover: #173d66;
   --on-accent: #ffffff;
-  --accent-soft: #dfe7ed;
-  --accent-text: #355d7a;
-  --focus: #355d7a;
+  --accent-soft: #e8eef6;
+  --accent-text: #1f4f82;
+  --focus: #2a62a2;
 
-  --ok: #285b3b;
-  --ok-bg: #e8eee4;
-  --warn: #795114;
-  --warn-bg: #f4ecda;
-  --danger: #993d32;
-  --danger-bg: #f7e9e3;
-  --info-bg: #e4e9ed;
-  --shadow-floating: 0 12px 32px rgba(34, 38, 32, 0.12);
+  --ok: #1d6642;
+  --ok-bg: #e6f2eb;
+  --warn: #7f4d00;
+  --warn-bg: #fbf0dc;
+  --danger: #a13429;
+  --danger-bg: #fbe9e6;
+  --info-bg: #edf2f8;
+  --ai-bg: #f4f6fa;
+  --ai-rule: #c9d6e6;
 
-  /* Paired shadows share an upper-left light source; borders carry control contrast. */
-  --depth-dark: rgba(127, 126, 123, 0.22);
-  --depth-light: rgba(255, 255, 255, 0.9);
-  --shadow-raised: 6px 6px 16px var(--depth-dark), -6px -6px 16px var(--depth-light);
-  --shadow-control: 2px 2px 5px var(--depth-dark), -2px -2px 5px var(--depth-light);
-  --shadow-inset: inset 2px 2px 5px var(--depth-dark), inset -2px -2px 5px var(--depth-light);
-  --shadow-pressed: inset 1px 1px 3px var(--depth-dark), inset -1px -1px 3px var(--depth-light);
+  --shadow-sm: 0 1px 2px rgba(22, 26, 32, 0.06);
+  --shadow-md: 0 1px 2px rgba(22, 26, 32, 0.05), 0 6px 18px rgba(22, 26, 32, 0.06);
+  --shadow-floating: 0 18px 40px rgba(22, 26, 32, 0.16), 0 2px 6px rgba(22, 26, 32, 0.06);
 
+  /* Every button-style control uses --r-btn. */
   --r-btn: 5px;
   --r-sm: 4px;
-  --r-md: 5px;
-  --r-lg: 12px;
+  --r-md: 6px;
+  --r-lg: 10px;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -52,46 +57,50 @@
   --space-8: 32px;
   --space-12: 48px;
   --space-16: 64px;
-  --nav-w: 216px;
+  --nav-w: 232px;
   --topbar-h: 56px;
   --bottomnav-h: 64px;
   --gap: var(--space-6);
   --pad: var(--space-4);
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --dur: 160ms;
+  --dur: 150ms;
   color-scheme: light;
 }
 
 :root[data-theme='dark'] {
-  --bg: #18191b;
-  --surface: #202226;
-  --surface-hi: #292c31;
-  --inset: #151618;
-  --text: #ededea;
-  --text-2: #c5c6c8;
-  --text-3: #a4a7ad;
-  --border: #3d4148;
-  --border-soft: #32353b;
-  --rule: #3d4148;
-  --control-border: #828791;
+  --bg: #111316;
+  --surface: #181b1f;
+  --surface-hi: #1e2227;
+  --inset: #14171a;
+  --text: #eceef0;
+  --text-2: #c4c8cd;
+  --text-3: #a0a6ae;
+  --border: #2c3137;
+  --border-soft: #24282d;
+  --rule: #2c3137;
+  --control-border: #6f7782;
+  --btn-border: #3b4149;
 
-  --accent: #a8c4df;
-  --accent-hover: #c7daed;
-  --on-accent: #17212d;
-  --accent-soft: #293440;
-  --accent-text: #a8c4df;
-  --focus: #c7daed;
+  --accent: #8fb7e8;
+  --accent-hover: #abcaf0;
+  --on-accent: #0c1726;
+  --accent-soft: #1b2939;
+  --accent-text: #9fc2ee;
+  --focus: #abcaf0;
 
-  --ok: #b9c9d8;
-  --ok-bg: #2b333d;
-  --warn: #e1c181;
-  --warn-bg: #3a3428;
-  --danger: #f0b1a4;
-  --danger-bg: #402e2a;
-  --info-bg: #272d35;
-  --depth-dark: rgba(0, 0, 0, 0.36);
-  --depth-light: rgba(255, 255, 255, 0.035);
-  --shadow-floating: 0 12px 32px rgba(0, 0, 0, 0.28);
+  --ok: #93d3ae;
+  --ok-bg: #15271e;
+  --warn: #e8c27c;
+  --warn-bg: #2a2415;
+  --danger: #f0a499;
+  --danger-bg: #321c19;
+  --info-bg: #162130;
+  --ai-bg: #161c24;
+  --ai-rule: #2e4560;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 18px rgba(0, 0, 0, 0.25);
+  --shadow-floating: 0 18px 40px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
   color-scheme: dark;
 }
 

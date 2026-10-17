@@ -27,6 +27,12 @@ export class OpenAIProvider implements AIProvider {
         response_format: { type: 'json_object' },
         max_completion_tokens: req.maxOutputTokens,
       },
+    }).catch((err: unknown) => {
+      // Logged on the server only: a retired or mistyped model name otherwise shows up as a bare "HTTP 404".
+      if (err instanceof UpstreamError && err.status === 404) {
+        throw new UpstreamError('OpenAI', 'http', `OpenAI model "${model}" is not available to this API key. Set OPENAI_MODEL to a current model.`, 404);
+      }
+      throw err;
     });
     const choice = data?.choices?.[0];
     const text = choice?.message?.content;

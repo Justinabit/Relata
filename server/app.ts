@@ -49,6 +49,8 @@ export function createApp(options: AppOptions = {}) {
   const dist = options.distDir ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist');
   const indexPath = path.join(dist, 'index.html');
   if (fs.existsSync(indexPath)) {
+    // The raw template is not a page: it still holds the head marker and has no route of its own.
+    app.get('/index.html', (_req, res) => res.redirect(301, '/'));
     app.use('/assets', express.static(path.join(dist, 'assets'), { immutable: true, maxAge: '1y', index: false }));
     app.use(express.static(dist, { index: false, maxAge: '1h' }));
 

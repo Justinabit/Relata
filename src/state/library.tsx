@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Study } from '../../shared/types';
 import { readJson, removeKey, writeJson } from '../lib/storage';
-import { sanitizeLibrary, type LibraryData } from '../lib/library';
+import { sanitizeLibrary, storedMetadata, type LibraryData } from '../lib/library';
 
 /**
  * FUTURE(auth): `LibraryStore` is the persistence boundary. Today it is backed by localStorage.
@@ -82,12 +82,12 @@ export function LibraryProvider({ children, store = localLibraryStore }: { child
       commit((d) =>
         exists
           ? { ...d, studies: d.studies.filter((s) => s.studyId !== study.id) }
-          : { ...d, studies: [{ studyId: study.id, savedAt: new Date().toISOString(), metadata: { ...study, abstract: null }, collectionIds: [] }, ...d.studies] },
+          : { ...d, studies: [{ studyId: study.id, savedAt: new Date().toISOString(), metadata: storedMetadata(study), collectionIds: [] }, ...d.studies] },
       );
       return !exists;
     },
     updateStudyMetadata: (id, study) =>
-      commit((d) => ({ ...d, studies: d.studies.map((s) => (s.studyId === id ? { ...s, metadata: { ...study, abstract: null } } : s)) })),
+      commit((d) => ({ ...d, studies: d.studies.map((s) => (s.studyId === id ? { ...s, metadata: storedMetadata(study, id) } : s)) })),
     removeStudy: (id) => commit((d) => ({ ...d, studies: d.studies.filter((s) => s.studyId !== id) })),
     setStudyCollections: (id, collectionIds) => commit((d) => ({ ...d, studies: d.studies.map((s) => (s.studyId === id ? { ...s, collectionIds } : s)) })),
     isTopicSaved: (name) => data.topics.some((t) => norm(t.name) === norm(name)),

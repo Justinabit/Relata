@@ -79,6 +79,9 @@ export function AboutPage() {
 
 /* ---------------------------------------------------------------- Privacy */
 export function PrivacyPage() {
+  // The limit is a server setting (AI_MAX_INPUT_CHARS); 6,000 is its default.
+  const { health } = useHealth();
+  const aiChars = (health?.limits.aiInputChars ?? 6000).toLocaleString('en');
   return (
     <Doc title="Privacy Policy" lead="Relata is designed to collect as little as possible. This page explains what is processed, by whom, and for how long." draft>
       <h2>1. Who operates Relata</h2>
@@ -86,7 +89,7 @@ export function PrivacyPage() {
 
       <h2>2. What data is processed</h2>
       <ul>
-        <li><strong>Search text you enter</strong> (topics, questions, passages). It is sent to the Relata server. Short search terms derived from it are sent to OpenAlex and Crossref to find studies. If AI analysis is on, up to the first 6,000 characters are sent to the AI provider you selected (Google Gemini or OpenAI).</li>
+        <li><strong>Search text you enter</strong> (topics, questions, passages). It is sent to the Relata server. Short search terms derived from it are sent to OpenAlex and Crossref to find studies. If AI analysis is on, up to the first {aiChars} characters are sent to the AI provider you selected (Google Gemini or OpenAI).</li>
         <li><strong>Uploaded documents.</strong> The file is read in server memory to extract text, then discarded when the request ends. It is never written to disk, never cached, and never logged. The extracted text is returned to your browser. If AI is on, only the opening part is sent to the AI provider, as described above. Do not upload documents that contain personal information about other people.</li>
         <li><strong>Technical data.</strong> Your IP address is used in memory to apply rate limits. Server logs record the request method, path, status code and duration. They do not record search text, query strings or document contents.</li>
         <li><strong>Server memory caches.</strong> To save cost and time, the server keeps scholarly metadata, AI analysis of short typed searches (keyed by a hash), and AI study notes in memory for a limited time (by default 15 minutes for search results, 1 hour for analyses, up to 24 hours for DOI lookups). Caches are cleared when the server restarts and are never used to identify you.</li>
@@ -261,29 +264,27 @@ export function AiUsePage() {
         </section>
       </div>
 
-      <div className="prose">
-        <h2>What AI is used for</h2>
-        <p>Query expansion, topic classification, definition generation, summarisation of retrieved records, relationship identification and search assistance.</p>
+      <h2>What AI is used for</h2>
+      <p>Query expansion, topic classification, definition generation, summarisation of retrieved records, relationship identification and search assistance.</p>
 
-        <h2>Safeguards</h2>
-        <ul>
-          <li><strong>No invented research.</strong> The AI never supplies the list of studies. Studies come only from scholarly APIs, and the summary step receives records by server-side ID. A client cannot submit its own “study” to be summarised.</li>
-          <li><strong>Grounding.</strong> Summaries use only the title, venue, topics and abstract of the retrieved record. Records without enough abstract text get no summary, and the card says so.</li>
-          <li><strong>Output validation.</strong> AI output must match a strict schema. Malformed output is rejected. Text containing links, DOIs, citation-like phrases (“Smith et al. (2024)”) or numbers that do not appear in the source is dropped. AI-supplied IDs, DOIs, URLs, dates or authors can never overwrite database metadata.</li>
-          <li><strong>Prompt-injection resistance.</strong> System instructions, the request, document text and external abstracts are kept in separate, fenced sections. Anything inside document or source text is treated as data to analyse, never as instructions. The AI has no tools, files or network access and no access to keys.</li>
-          <li><strong>Minimum data.</strong> Only the opening part of your text (6,000 characters by default) is sent, and only when AI is on. Search terms, not documents, go to OpenAlex and Crossref.</li>
-          <li><strong>Graceful failure.</strong> If the primary provider fails, the other may be tried (in Automatic mode). If both fail, Relata shows “AI analysis is temporarily unavailable. You can still search verified scholarly sources.” and the search keeps working. It does not make up an answer.</li>
-        </ul>
+      <h2>Safeguards</h2>
+      <ul>
+        <li><strong>No invented research.</strong> The AI never supplies the list of studies. Studies come only from scholarly APIs, and the summary step receives records by server-side ID. A client cannot submit its own “study” to be summarised.</li>
+        <li><strong>Grounding.</strong> Summaries use only the title, venue, topics and abstract of the retrieved record. Records without enough abstract text get no summary, and the card says so.</li>
+        <li><strong>Output validation.</strong> AI output must match a strict schema. Malformed output is rejected. Text containing links, DOIs, citation-like phrases (“Smith et al. (2024)”) or numbers that do not appear in the source is dropped. AI-supplied IDs, DOIs, URLs, dates or authors can never overwrite database metadata.</li>
+        <li><strong>Prompt-injection resistance.</strong> System instructions, the request, document text and external abstracts are kept in separate, fenced sections. Anything inside document or source text is treated as data to analyse, never as instructions. The AI has no tools, files or network access and no access to keys.</li>
+        <li><strong>Minimum data.</strong> Only the opening part of your text (6,000 characters by default) is sent, and only when AI is on. Search terms, not documents, go to OpenAlex and Crossref.</li>
+        <li><strong>Graceful failure.</strong> If the primary provider fails, the other may be tried (in Automatic mode). If both fail, Relata shows “AI analysis is temporarily unavailable. You can still search verified scholarly sources.” and the search keeps working. It does not make up an answer.</li>
+      </ul>
 
-        <h2>Providers</h2>
-        <p>Google Gemini and OpenAI, selectable in Settings. Keys are server-side environment variables. Their handling of the text you send is governed by their own terms.</p>
+      <h2>Providers</h2>
+      <p>Google Gemini and OpenAI, selectable in Settings. Keys are server-side environment variables. Their handling of the text you send is governed by their own terms.</p>
 
-        <h2>Web search grounding</h2>
-        <p>Relata does not use AI web-search grounding in this version. Every result shown is a scholarly record from OpenAlex or Crossref. If web sources are ever added, they will be labelled as web sources and never presented as studies.</p>
+      <h2>Web search grounding</h2>
+      <p>Relata does not use AI web-search grounding in this version. Every result shown is a scholarly record from OpenAlex or Crossref. If web sources are ever added, they will be labelled as web sources and never presented as studies.</p>
 
-        <h2>Known limits</h2>
-        <p>AI can misread a text, omit nuance, or phrase relevance too confidently. The rules above reduce but cannot eliminate this. Treat AI text as a starting point and read the source. See the <Link to="/disclaimer">Academic Disclaimer</Link>.</p>
-      </div>
+      <h2>Known limits</h2>
+      <p>AI can misread a text, omit nuance, or phrase relevance too confidently. The rules above reduce but cannot eliminate this. Treat AI text as a starting point and read the source. See the <Link to="/disclaimer">Academic Disclaimer</Link>.</p>
     </Doc>
   );
 }

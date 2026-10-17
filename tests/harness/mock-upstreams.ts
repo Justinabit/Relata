@@ -10,6 +10,9 @@ process.env.OPENALEX_API_KEY = 'fixture-key';
 process.env.PORT = process.env.PORT ?? '8790';
 process.env.NODE_ENV = 'production';
 process.env.CONTACT_EMAIL = 'hello@example.invalid';
+// The browser suites run many searches back to back; the default per-minute limits would cut them off.
+process.env.RATE_LIMIT_AI ??= '1000';
+process.env.RATE_LIMIT_SEARCH ??= '1000';
 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
 const words = 'Participants completed a survey about study habits and attention, and the authors report that heavier daily use was associated with lower self-reported concentration during coursework, while moderate use showed little association in this sample of undergraduates from three universities.';

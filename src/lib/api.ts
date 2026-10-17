@@ -17,23 +17,50 @@ export class ApiError extends Error {
 /** Hard ceiling so a hung connection ends in an error message instead of an endless spinner. */
 const REQUEST_TIMEOUT_MS = 90_000;
 
+/** `AbortSignal.timeout` is missing before Safari 16. */
+function timeoutSignal(ms: number): AbortSignal {
+  if (typeof AbortSignal.timeout === 'function') return AbortSignal.timeout(ms);
+  const ctrl = new AbortController();
+  setTimeout(() => ctrl.abort(new DOMException('The request timed out.', 'TimeoutError')), ms);
+  return ctrl.signal;
+}
+
+/** Aborts when any of the signals aborts. `AbortSignal.any` is missing before Safari 17.4, where every request used to fail. */
+export function anySignal(signals: AbortSignal[]): AbortSignal {
+  if (typeof AbortSignal.any === 'function') return AbortSignal.any(signals);
+  const ctrl = new AbortController();
+  for (const s of signals) {
+    if (s.aborted) {
+      ctrl.abort(s.reason);
+      break;
+    }
+    s.addEventListener('abort', () => ctrl.abort(s.reason), { once: true });
+  }
+  return ctrl.signal;
+}
+
 async function request<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
   const { json, ...rest } = init;
-  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const timeout = timeoutSignal(REQUEST_TIMEOUT_MS);
+  // Decide from the signals, not the error name: browsers differ in what a cancelled or timed-out fetch rejects with.
+  const failure = () => {
+    if (rest.signal?.aborted) return new DOMException('The request was cancelled.', 'AbortError'); // by the app, not an error
+    if (timeout.aborted) return new ApiError('TIMEOUT', 'The server took too long to respond. Please try again.');
+    return new ApiError('NETWORK', 'Could not reach the Relata server. Check your connection and try again.');
+  };
   let res: Response;
+  let text: string;
   try {
     res = await fetch(path, {
       ...rest,
-      signal: rest.signal ? AbortSignal.any([rest.signal, timeout]) : timeout,
+      signal: rest.signal ? anySignal([rest.signal, timeout]) : timeout,
       headers: { ...(json !== undefined ? { 'content-type': 'application/json' } : {}), ...rest.headers },
       body: json !== undefined ? JSON.stringify(json) : rest.body,
     });
-  } catch (err) {
-    if ((err as Error).name === 'AbortError') throw err; // cancelled by the app, not an error
-    if ((err as Error).name === 'TimeoutError') throw new ApiError('TIMEOUT', 'The server took too long to respond. Please try again.');
-    throw new ApiError('NETWORK', 'Could not reach the Relata server. Check your connection and try again.');
+    text = await res.text();
+  } catch {
+    throw failure();
   }
-  const text = await res.text();
   let data: unknown = null;
   try {
     data = text ? JSON.parse(text) : null;

@@ -29,7 +29,8 @@ export function CiteDialog({ target, onClose }: { target: CiteTarget | null; onC
   const missing = studies.filter((s) => !s.authors.length || !s.journal).length;
 
   const copy = async (value: string, msg: string) => toast((await copyText(value)) ? msg : 'Copy failed. Select the text and copy it manually.');
-  const slug = (target?.query ?? 'relata').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) || 'relata';
+  // File-name stem from the search: letters in any script, no leading or trailing dashes ("-bibliography-apa.txt" before).
+  const slug = (target?.query ?? 'relata').toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, '-').slice(0, 40).replace(/^-+|-+$/g, '') || 'relata';
 
   return (
     <Dialog open={!!target} onClose={onClose} title={target?.title ?? ''} wide>

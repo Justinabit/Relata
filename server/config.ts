@@ -43,7 +43,8 @@ export const config = {
     maxInputChars: int(process.env.AI_MAX_INPUT_CHARS, 6000, 500, 30000),
     gemini: {
       apiKey: str(process.env.GEMINI_API_KEY),
-      model: str(process.env.GEMINI_MODEL) ?? 'gemini-2.5-flash',
+      // Google limits the 2.5 models to projects that already used them (release notes, 18 September 2026).
+      model: str(process.env.GEMINI_MODEL) ?? 'gemini-3.8-flash',
       baseUrl: 'https://generativelanguage.googleapis.com',
     },
     openai: {

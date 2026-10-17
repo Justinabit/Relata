@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type DragEvent, type FormE
 import { FileText, Search as SearchIcon, ShieldCheck, Upload, X } from 'lucide-react';
 import type { UploadResponse } from '../../shared/types';
 import { computeWindow } from '../../shared/window';
+import { aiUsable, PROVIDER_LABEL, providerNames } from '../lib/ai';
 import { api, ApiError } from '../lib/api';
 import { nf, excerpt } from '../lib/format';
 import { Link, useDocumentTitle, useRouter } from '../lib/router';
@@ -24,17 +25,8 @@ const ACCEPT = '.pdf,.docx,.txt,.md,.markdown';
 const EXT_OK = /\.(pdf|docx|txt|md|markdown)$/i;
 export const UNSUPPORTED = "This file type isn't supported. Please upload a PDF, DOCX, TXT, or Markdown file.";
 
-function providerNames(pref: string, h: ReturnType<typeof useHealth>['health']): string {
-  if (!h) return 'an AI provider';
-  const label = { gemini: 'Google Gemini', openai: 'OpenAI' } as const;
-  if (pref === 'gemini' || pref === 'openai') return label[pref];
-  const order = h.ai.primary === 'gemini' ? (['gemini', 'openai'] as const) : (['openai', 'gemini'] as const);
-  const on = order.filter((p) => h.ai[p]);
-  return on.length === 2 ? `${label[on[0]]} (with ${label[on[1]]} as a fallback)` : label[on[0]];
-}
-
 export default function SearchPage() {
-  useDocumentTitle('');
+  useDocumentTitle('Search');
   const { start } = useResearch();
   const { navigate } = useRouter();
   const { settings } = useSettings();
@@ -53,7 +45,9 @@ export default function SearchPage() {
   const win = computeWindow(settings.yearsBack);
   const maxChars = health?.limits.maxInputChars ?? 20000;
   const maxMb = health?.limits.maxUploadMb ?? 8;
-  const aiAvailable = health ? health.ai.anyConfigured : true;
+  const aiAvailable = aiUsable(settings.aiProvider, health);
+  // The server has AI, but not the provider chosen in Settings (which is never swapped for the other one).
+  const providerMissing = !aiAvailable && !!health?.ai.anyConfigured && settings.aiProvider !== 'auto';
   const aiOn = useAI && aiAvailable;
   const aiChars = health?.limits.aiInputChars ?? 6000;
   const canSubmit = doc ? true : text.trim().length >= 2;
@@ -99,6 +93,13 @@ export default function SearchPage() {
     e.preventDefault();
     setDrag(false);
     void handleFile(e.dataTransfer.files?.[0]);
+  };
+
+  // With a document loaded the textarea is not mounted yet, so focus it after the next render.
+  const pickText = (value: string) => {
+    setDoc(null);
+    setText(value);
+    requestAnimationFrame(() => areaRef.current?.focus());
   };
 
   const savedQueries = useMemo(() => lib.data.queries.slice(0, 4), [lib.data.queries]);
@@ -158,6 +159,7 @@ export default function SearchPage() {
             <Upload size={18} aria-hidden="true" /> {uploading ? 'Reading file…' : 'Upload Document'}
           </button>
           <span id={`${id}-types`} className="composer__types">PDF, DOCX, TXT or Markdown · up to {maxMb} MB</span>
+          {!doc && <span className="composer__types composer__kbd"><kbd>Ctrl</kbd> or <kbd>⌘</kbd> + <kbd>Enter</kbd> to search</span>}
         </div>
 
         <div id={`${id}-notes`} className="composer__notes">
@@ -167,11 +169,13 @@ export default function SearchPage() {
             <span>Use AI to analyze the topic</span>
           </label>
           <p className="small muted">
-            {!aiAvailable
-              ? 'AI analysis is not set up on this server, so Relata will search using keywords extracted from your text. Verified scholarly search works either way.'
-              : aiOn
-                ? <>The first {nf.format(aiChars)} characters of your text are sent to {providerNames(settings.aiProvider, health)} to extract topics and keywords. Search keywords are sent to OpenAlex and Crossref. <Link to={ROUTES.aiUse}>AI disclosure</Link></>
-                : 'AI is off for this search. Your text stays on this server and only extracted keywords are sent to OpenAlex and Crossref.'}
+            {providerMissing && settings.aiProvider !== 'auto'
+              ? <>{PROVIDER_LABEL[settings.aiProvider]} is selected in <Link to={ROUTES.settings}>Settings</Link> but is not set up on this server, so Relata will search using keywords extracted from your text. Choose Automatic there to use AI.</>
+              : !aiAvailable
+                ? 'AI analysis is not set up on this server, so Relata will search using keywords extracted from your text. Verified scholarly search works either way.'
+                : aiOn
+                  ? <>The first {nf.format(aiChars)} characters of your text are sent to {providerNames(settings.aiProvider, health)} to extract topics and keywords. Search keywords are sent to OpenAlex and Crossref. <Link to={ROUTES.aiUse}>AI disclosure</Link></>
+                  : 'AI is off for this search. Your text stays on this server and only extracted keywords are sent to OpenAlex and Crossref.'}
           </p>
           {doc || uploading ? (
             <p className="small muted"><ShieldCheck size={14} aria-hidden="true" className="inline" /> Uploaded documents are processed for analysis and are not permanently stored by default. Text is read in server memory and discarded; nothing is written to disk.</p>
@@ -185,7 +189,7 @@ export default function SearchPage() {
           <ul className="examples__list">
             {EXAMPLES.map((ex) => (
               <li key={ex}>
-                <button type="button" className="example" onClick={() => { setDoc(null); setText(ex); areaRef.current?.focus(); }}>{ex}</button>
+                <button type="button" className="example" onClick={() => pickText(ex)}>{ex}</button>
               </li>
             ))}
           </ul>
@@ -194,7 +198,7 @@ export default function SearchPage() {
               <h2 className="label mt14">Saved searches</h2>
               <ul className="examples__list">
                 {savedQueries.map((q) => (
-                  <li key={q.text}><button type="button" className="example example--saved" onClick={() => { setDoc(null); setText(q.text); areaRef.current?.focus(); }}>{excerpt(q.text, 80)}</button></li>
+                  <li key={q.text}><button type="button" className="example example--saved" onClick={() => pickText(q.text)}>{excerpt(q.text, 80)}</button></li>
                 ))}
               </ul>
             </>

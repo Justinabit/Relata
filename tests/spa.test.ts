@@ -109,6 +109,10 @@ describe('page requests over HTTP', () => {
     assert.equal(b.status, 301);
     assert.equal(b.headers.get('location'), '/app/research?q=climate%20change');
     assert.equal((await get('/saved')).headers.get('location'), '/app/saved');
+    // The raw build template is not a page (it still holds the head marker).
+    const raw = await get('/index.html');
+    assert.equal(raw.status, 301);
+    assert.equal(raw.headers.get('location'), '/');
   });
 
   test('sitemap and robots.txt use the public address; the API and other methods are untouched', async () => {

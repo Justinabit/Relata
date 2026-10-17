@@ -83,6 +83,16 @@ function validEntries<T>(raw: unknown, schema: z.ZodType<T>, key: (entry: T) => 
   return out;
 }
 
+/**
+ * What is stored for a saved study: verified metadata without the abstract. The record keeps the id it was saved
+ * under, because a re-check can return the same work under another id (a Crossref-only find that OpenAlex now
+ * knows, or an OpenAlex record merged into another). Without this the card stopped showing "Saved" and a second
+ * save created a duplicate.
+ */
+export function storedMetadata(study: Study, savedId: string = study.id): StoredStudy {
+  return { ...study, id: savedId, abstract: null };
+}
+
 /** Read-only recovery: skip malformed entries individually without rewriting the stored library. */
 export function sanitizeLibrary(raw: unknown): LibraryData {
   const data = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {};

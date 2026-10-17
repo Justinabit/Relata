@@ -1,5 +1,76 @@
 # Changelog
 
+## Bug fixes, AI model update and design refresh
+
+How each item was verified:
+- **Reproduced, then fixed** (a script or browser run showed the bug before and not after, plus a new test in
+  `tests/fixes.test.ts`): empty and oversized search plans, re-verify identity, stale research window, older Safari,
+  unconfigured AI provider.
+- **Checked against current vendor documentation, fixed defensively** (needs a live key to confirm): Gemini model
+  default and Gemini 3 settings, model-not-found messages.
+- **Found by code review, verified after the fix**: Windows `npm start`, `/index.html`, citation file names,
+  example focus, error-state header, privacy page character limit.
+
+### Bugs fixed
+- **Some texts could not be searched at all.** With AI off or unavailable, a passage with no usable keywords (for
+  example only numbers) sent an empty query, and text without spaces (Chinese, Japanese, Thai) built keyword phrases
+  over the 100 and 300 character limits. Both failed with a cryptic "Invalid request" error. The keyword plan now always
+  fits the limits and falls back to the text's opening words; input with nothing to search (such as "?!") gets a clear
+  message.
+- **Re-verifying a saved study broke it.** A study first found through Crossref came back from the re-check under its
+  OpenAlex id, so its card showed "Save" instead of "Saved" and pressing it saved a second copy. Saved studies now keep
+  the id they were saved under.
+- **The sidebar showed the old research window** after the default was changed in Settings, until a new search ran.
+- **Searching failed in Safari before 17.4** (iOS 16 and early iOS 17): `AbortSignal.any` does not exist there, so every
+  request failed with "Could not reach the Relata server". A fallback is used when it is missing, and timeouts are told
+  apart from cancellations by the signals rather than by error names, which differ between browsers.
+- **The Search page could state something untrue.** With a provider chosen in Settings that the server has not set up,
+  it said "your text is sent to OpenAI" although nothing was sent, and the results then said AI was "not set up on this
+  server" while the other provider was. Unconfigured providers can no longer be chosen in Settings, the Search and
+  landing pages run without AI in that case and say why, and the server names the missing provider.
+- **`npm start` failed on Windows.** `NODE_ENV=production tsx ...` is Unix shell syntax. Production mode is now set in
+  `server/start.ts`.
+- `/index.html` served the raw build template (with its placeholder comment) as a "Page not found" screen. It now
+  redirects to `/`.
+- Exported file names could start with a dash or come out as `-` for non-Latin searches ("--bibliography-apa.txt").
+- Clicking an example while a document was loaded did not focus the text box.
+- After a failed search the Studies header still said "Searching verified scholarly sources…".
+- The Privacy Policy always said 6,000 characters are sent to AI, even when `AI_MAX_INPUT_CHARS` was changed.
+
+### AI providers
+- **Default Gemini model is now `gemini-3.8-flash`.** Google's Gemini API release notes (18 September 2026) limit the 2.5
+  models to projects that already used them, so a new key could not use the old default `gemini-2.5-flash`. Gemini 3
+  models get `thinkingLevel: "low"` and the default temperature, as Google's Gemini 3 guide describes; 2.5 Flash keeps
+  its thinking budget of 0. If a model rejects the thinking setting, the request is retried once without it.
+- A retired or mistyped `GEMINI_MODEL` or `OPENAI_MODEL` is now logged as "model is not available to this API key"
+  with the setting to change, instead of a bare "HTTP 404".
+- `.env.example` notes that OpenAI lists `gpt-4.1-mini` for removal from the API on 14 January 2027. It is still the
+  default because it still works; choose its replacement before that date.
+
+### Design
+- New visual system: warm paper background with white working surfaces, hairline borders and one soft shadow, in place
+  of the paired "soft UI" shadows that made every surface the same grey. One ink-blue accent, also used by the favicon
+  and browser theme colour.
+- Study cards are separate cards with a clearer order: title, authors, year, venue and citation count, source badges,
+  then the AI notes in a labelled panel, then actions. The landing page's example result now uses the same card styles,
+  so it shows the real layout (including the "Cited by" count it already promised).
+- Routine information (such as the "up to 100 records" note shown on most searches) is a quiet line under the Studies
+  header; warnings keep their highlighted box.
+- Landing page: facts row in the hero, card layouts for the steps, checks and AI sections, icons from the existing
+  icon set, sticky header on larger screens, single-row navigation on phones.
+- Search page: keyboard shortcut hint; filters on phones open as one card instead of a box inside a box; Settings
+  sections are cards; dialogs have a header bar; onboarding shows its progress.
+- All existing rules still hold: 5px corner radius on every button-style control, no gradients, pill buttons or emoji,
+  no em or en dashes in visible text, no scroll or cursor animation. Every text colour passes WCAG AA in both themes
+  (checked by `tests/e2e/editorial.py`, 204 checks).
+
+### Tests
+- `tests/fixes.test.ts` (11 tests) covers the fixes above; `tests/spa.test.ts` checks the `/index.html` redirect.
+  77 unit and pipeline tests in total.
+- The fixture harness raises its own rate limits, so the browser suites can run back to back (the editorial suite used
+  to stop partway with "Too many AI analysis requests").
+- README screenshots retaken.
+
 ## Repository housekeeping
 - New `README.md` for the repository, with screenshots in `docs/screenshots/`. The detailed developer notes that used to be the README are now in `docs/DEVELOPMENT.md`.
 - Stopped tracking the compiled Python file `tests/e2e/__pycache__/seen.cpython-313.pyc` and ignored `__pycache__/` and `*.pyc`.

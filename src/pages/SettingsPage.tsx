@@ -53,8 +53,9 @@ export default function SettingsPage() {
         <Choice name="provider" legend="Provider for topic analysis and summaries" value={settings.aiProvider} onChange={(v) => update({ aiProvider: v })}
           options={[
             { v: 'auto', label: 'Automatic', note: 'Primary, then fallback' },
-            { v: 'gemini', label: 'Gemini', note: health && !health.ai.gemini ? 'not configured' : undefined },
-            { v: 'openai', label: 'OpenAI', note: health && !health.ai.openai ? 'not configured' : undefined },
+            // A provider the server lacks cannot be chosen: the search would silently run without AI.
+            { v: 'gemini', label: 'Gemini', note: health && !health.ai.gemini ? 'Not set up on this server' : undefined, disabled: !!health && !health.ai.gemini },
+            { v: 'openai', label: 'OpenAI', note: health && !health.ai.openai ? 'Not set up on this server' : undefined, disabled: !!health && !health.ai.openai },
           ]}
           hint="Automatic tries the server’s primary provider first and uses the other as a fallback. Choosing a specific provider means your text is never sent to the other one." />
       </Section>

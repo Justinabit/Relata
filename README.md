@@ -67,6 +67,7 @@ Everything is set through environment variables, read on the server only. Keys a
 | `OPENALEX_API_KEY` | Larger OpenAlex budget (free key) | none |
 | `GEMINI_API_KEY`, `OPENAI_API_KEY` | Turn on AI features. Either one, or both | none |
 | `PRIMARY_AI_PROVIDER` | Which provider to try first: `gemini` or `openai` | `gemini` |
+| `GEMINI_MODEL`, `OPENAI_MODEL` | Model names. Vendors retire models, so check their model lists (see `.env.example`) | `gemini-3.8-flash`, `gpt-4.1-mini` |
 | `CONTACT_EMAIL` | Shown on the Contact page and policies, sent to Crossref | none |
 | `PUBLIC_URL` | Public address, for the sitemap, canonical links and share image | none |
 | `PORT` | Server port | `8787` |
@@ -137,6 +138,8 @@ Built with Express 5, React 19, Vite and TypeScript. There is no database. Searc
 Relata is meant to look like a finished product, not a template. These rules apply to everything added to the site:
 
 - Every button-style control uses one corner radius, `--r-btn` (5px) in `src/styles/tokens.css`.
+- Colours come from the tokens in `src/styles/tokens.css`. Depth comes from hairline borders and one soft shadow, not paired "soft UI" shadows.
+- Every text colour must pass WCAG AA against its background in both themes. `tests/e2e/editorial.py` checks this.
 - No gradients, pill-shaped buttons, emoji icons, fake reviews, fake metrics or customer counters.
 - No em or en dashes in visible text.
 - No scroll-triggered or cursor-following animation.

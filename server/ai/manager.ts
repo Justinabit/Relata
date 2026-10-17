@@ -53,7 +53,11 @@ export async function runStructured<T>(opts: {
   signal?: AbortSignal;
 }): Promise<StructuredResult<T>> {
   const order = providerOrder(opts.preference).filter((p) => p.isConfigured());
-  if (!order.length) throw new AIUnavailableError('not_configured', 'No AI provider is configured on the server.');
+  if (!order.length) {
+    // An explicit choice is never swapped for the other provider, so say which one is missing.
+    const chosen = opts.preference === 'auto' ? undefined : opts.preference;
+    throw new AIUnavailableError('not_configured', 'No AI provider is configured on the server.', [], chosen);
+  }
   const attempts: { provider: AIProviderName; error: string }[] = [];
   for (const p of order) {
     try {
@@ -71,8 +75,17 @@ export async function runStructured<T>(opts: {
   throw new AIUnavailableError('failed', 'AI analysis is temporarily unavailable.', attempts);
 }
 
+const PROVIDER_LABEL: Record<AIProviderName, string> = { gemini: 'Google Gemini', openai: 'OpenAI' };
+
 export function unavailableInfo(err: unknown): AIInfo {
   if (err instanceof AIUnavailableError && err.reason === 'not_configured') {
+    if (err.provider) {
+      return {
+        status: 'not_configured',
+        provider: err.provider,
+        message: `${PROVIDER_LABEL[err.provider]} is selected in Settings but is not configured on this server. Choose Automatic or another provider. Verified scholarly search is still available.`,
+      };
+    }
     return { status: 'not_configured', message: 'No AI provider is configured on this server. Verified scholarly search is still available.' };
   }
   return { status: 'unavailable', message: 'AI analysis is temporarily unavailable. You can still search verified scholarly sources.' };
